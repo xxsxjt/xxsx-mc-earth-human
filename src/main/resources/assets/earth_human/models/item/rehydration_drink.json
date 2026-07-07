@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/rehydration_drink"
+  },
+  "parent": "minecraft:item/generated"
+}

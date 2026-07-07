@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/field_health_note"
+  },
+  "parent": "minecraft:item/generated"
+}

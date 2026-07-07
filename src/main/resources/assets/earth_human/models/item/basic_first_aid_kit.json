@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/basic_first_aid_kit"
+  },
+  "parent": "minecraft:item/generated"
+}

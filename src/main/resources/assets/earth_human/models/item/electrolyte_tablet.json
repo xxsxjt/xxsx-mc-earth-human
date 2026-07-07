@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/electrolyte_tablet"
+  },
+  "parent": "minecraft:item/generated"
+}

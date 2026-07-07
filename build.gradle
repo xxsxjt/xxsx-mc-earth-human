@@ -1,0 +1,45 @@
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.140'
+}
+
+version = '0.1.2'
+group = 'com.xxsx.earthhuman'
+base.archivesName = 'earth-human-neoforge-26.2'
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+
+neoForge {
+    version = '26.2.0.7-beta'
+
+    runs {
+        configureEach {
+            client()
+            server()
+        }
+    }
+
+    mods {
+        earth_human {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+jar {
+    manifest {
+        attributes([
+            'Specification-Title'     : 'earth_human',
+            'Specification-Vendor'    : 'xxsx',
+            'Specification-Version'   : '1',
+            'Implementation-Title'    : project.name,
+            'Implementation-Version'  : project.jar.archiveVersion,
+            'Implementation-Vendor'   : 'xxsx',
+            'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}

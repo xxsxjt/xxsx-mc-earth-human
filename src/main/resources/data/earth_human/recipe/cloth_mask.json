@@ -1,0 +1,16 @@
+{
+  "result": {
+    "id": "earth_human:cloth_mask"
+  },
+  "pattern": [
+    "SCS",
+    " C ",
+    "SCS"
+  ],
+  "key": {
+    "S": "minecraft:string",
+    "C": "earth_human:clean_cloth"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

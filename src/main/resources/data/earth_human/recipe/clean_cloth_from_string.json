@@ -1,0 +1,15 @@
+{
+  "result": {
+    "count": 2,
+    "id": "earth_human:clean_cloth"
+  },
+  "pattern": [
+    "SS",
+    "SS"
+  ],
+  "key": {
+    "S": "minecraft:string"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

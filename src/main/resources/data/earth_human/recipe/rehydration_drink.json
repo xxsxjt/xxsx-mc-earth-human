@@ -1,0 +1,13 @@
+{
+  "ingredients": [
+    "earth_human:oral_rehydration_salts",
+    "minecraft:potion",
+    "minecraft:honey_bottle"
+  ],
+  "result": {
+    "count": 2,
+    "id": "earth_human:rehydration_drink"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

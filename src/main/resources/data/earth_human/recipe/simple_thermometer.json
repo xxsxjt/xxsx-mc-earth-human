@@ -1,0 +1,17 @@
+{
+  "result": {
+    "id": "earth_human:simple_thermometer"
+  },
+  "pattern": [
+    " G ",
+    " R ",
+    " C "
+  ],
+  "key": {
+    "G": "minecraft:glass",
+    "R": "minecraft:redstone",
+    "C": "minecraft:copper_ingot"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

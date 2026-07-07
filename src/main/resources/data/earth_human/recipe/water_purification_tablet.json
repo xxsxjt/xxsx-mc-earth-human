@@ -1,0 +1,14 @@
+{
+  "ingredients": [
+    "minecraft:charcoal",
+    "minecraft:clay_ball",
+    "minecraft:sugar",
+    "minecraft:paper"
+  ],
+  "result": {
+    "count": 4,
+    "id": "earth_human:water_purification_tablet"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

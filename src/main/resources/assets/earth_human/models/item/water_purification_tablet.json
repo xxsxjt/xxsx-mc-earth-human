@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/water_purification_tablet"
+  },
+  "parent": "minecraft:item/generated"
+}

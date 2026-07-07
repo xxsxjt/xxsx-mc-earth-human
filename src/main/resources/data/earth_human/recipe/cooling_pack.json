@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "minecraft:snowball",
+    "minecraft:paper",
+    "minecraft:string"
+  ],
+  "result": {
+    "id": "earth_human:cooling_pack"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

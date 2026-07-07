@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "minecraft:potion",
+    "minecraft:sugar",
+    "minecraft:wheat_seeds"
+  ],
+  "result": {
+    "id": "earth_human:restorative_tea"
+  },
+  "category": "food",
+  "type": "minecraft:crafting_shapeless"
+}

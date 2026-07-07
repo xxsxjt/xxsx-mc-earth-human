@@ -1,0 +1,11 @@
+{
+  "ingredients": [
+    "earth_human:simple_bandage",
+    "earth_human:disinfectant_wipe"
+  ],
+  "result": {
+    "id": "earth_human:sterile_bandage"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

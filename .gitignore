@@ -1,0 +1,11 @@
+.gradle/
+.vscode/
+build/
+out/
+runs/
+run/
+*.log
+*.tmp
+*.bak
+*.jar
+!gradle/wrapper/gradle-wrapper.jar

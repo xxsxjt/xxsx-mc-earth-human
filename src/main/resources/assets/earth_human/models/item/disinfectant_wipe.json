@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/disinfectant_wipe"
+  },
+  "parent": "minecraft:item/generated"
+}

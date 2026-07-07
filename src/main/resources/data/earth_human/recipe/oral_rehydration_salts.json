@@ -1,0 +1,14 @@
+{
+  "ingredients": [
+    "minecraft:sugar",
+    "minecraft:sugar",
+    "minecraft:bone_meal",
+    "minecraft:paper"
+  ],
+  "result": {
+    "count": 3,
+    "id": "earth_human:oral_rehydration_salts"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

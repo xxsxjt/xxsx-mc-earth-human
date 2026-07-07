@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/simple_thermometer"
+  },
+  "parent": "minecraft:item/generated"
+}

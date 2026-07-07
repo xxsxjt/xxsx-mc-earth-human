@@ -1,0 +1,11 @@
+{
+  "ingredients": [
+    "earth_human:canteen",
+    "minecraft:water_bucket"
+  ],
+  "result": {
+    "id": "earth_human:filled_canteen"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

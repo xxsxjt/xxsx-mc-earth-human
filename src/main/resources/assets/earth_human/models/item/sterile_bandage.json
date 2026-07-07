@@ -1,0 +1,6 @@
+{
+  "textures": {
+    "layer0": "earth_human:item/sterile_bandage"
+  },
+  "parent": "minecraft:item/generated"
+}

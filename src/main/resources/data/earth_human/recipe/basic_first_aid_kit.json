@@ -1,0 +1,18 @@
+{
+  "result": {
+    "id": "earth_human:basic_first_aid_kit"
+  },
+  "pattern": [
+    "BSB",
+    "CAC",
+    "BSB"
+  ],
+  "key": {
+    "B": "earth_human:sterile_bandage",
+    "A": "earth_human:antiseptic_bottle",
+    "C": "earth_human:clean_cloth",
+    "S": "minecraft:string"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

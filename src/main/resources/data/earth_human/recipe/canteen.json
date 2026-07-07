@@ -1,0 +1,16 @@
+{
+  "result": {
+    "id": "earth_human:canteen"
+  },
+  "pattern": [
+    " L ",
+    "C C",
+    " C "
+  ],
+  "key": {
+    "C": "minecraft:copper_ingot",
+    "L": "minecraft:leather"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

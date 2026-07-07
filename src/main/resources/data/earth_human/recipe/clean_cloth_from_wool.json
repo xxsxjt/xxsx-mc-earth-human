@@ -1,0 +1,11 @@
+{
+  "ingredients": [
+    "minecraft:white_wool"
+  ],
+  "result": {
+    "count": 4,
+    "id": "earth_human:clean_cloth"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

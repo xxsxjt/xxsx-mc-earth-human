@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "earth_human:cloth_mask",
+    "minecraft:paper",
+    "minecraft:charcoal"
+  ],
+  "result": {
+    "id": "earth_human:dust_mask"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

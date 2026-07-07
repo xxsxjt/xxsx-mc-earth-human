@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "minecraft:charcoal",
+    "minecraft:paper",
+    "minecraft:iron_nugget"
+  ],
+  "result": {
+    "id": "earth_human:heat_pack"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "minecraft:book",
+    "minecraft:feather",
+    "earth_human:simple_thermometer"
+  ],
+  "result": {
+    "id": "earth_human:field_health_note"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

@@ -1,0 +1,6 @@
+{
+  "model": {
+    "model": "earth_human:item/simple_thermometer",
+    "type": "minecraft:model"
+  }
+}

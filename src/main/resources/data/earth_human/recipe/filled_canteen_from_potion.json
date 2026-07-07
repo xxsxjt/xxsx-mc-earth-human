@@ -1,0 +1,11 @@
+{
+  "ingredients": [
+    "earth_human:canteen",
+    "minecraft:potion"
+  ],
+  "result": {
+    "id": "earth_human:filled_canteen"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

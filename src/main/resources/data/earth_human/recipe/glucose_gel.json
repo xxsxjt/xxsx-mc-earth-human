@@ -1,0 +1,13 @@
+{
+  "ingredients": [
+    "minecraft:sugar",
+    "minecraft:honey_bottle",
+    "minecraft:slime_ball"
+  ],
+  "result": {
+    "count": 2,
+    "id": "earth_human:glucose_gel"
+  },
+  "category": "food",
+  "type": "minecraft:crafting_shapeless"
+}
