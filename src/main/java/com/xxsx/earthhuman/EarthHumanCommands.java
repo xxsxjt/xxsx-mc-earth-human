@@ -2,6 +2,7 @@ package com.xxsx.earthhuman;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
@@ -24,7 +25,28 @@ public final class EarthHumanCommands {
 
     private static com.mojang.brigadier.builder.LiteralArgumentBuilder<CommandSourceStack> root(String name) {
         return Commands.literal(name)
-                .then(Commands.literal("status").executes(ctx -> status(ctx.getSource())))
+                .then(Commands.literal("status")
+                        .executes(ctx -> statusScreen(ctx.getSource(), 0))
+                        .then(Commands.literal("text").executes(ctx -> status(ctx.getSource()))))
+                .then(Commands.literal("panel").executes(ctx -> statusScreen(ctx.getSource(), 0)))
+                .then(Commands.literal("body").executes(ctx -> body(ctx.getSource())))
+                .then(Commands.literal("training").executes(ctx -> training(ctx.getSource())))
+                .then(Commands.literal("exercise")
+                        .executes(ctx -> exerciseHelp(ctx.getSource()))
+                        .then(Commands.literal("push_up").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.PUSH_UP)))
+                        .then(Commands.literal("squat").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.SQUAT)))
+                        .then(Commands.literal("core").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.CORE_TRAINING)))
+                        .then(Commands.literal("stretch").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.STRETCH)))
+                        .then(Commands.literal("dumbbell").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.DUMBBELL_CURL)))
+                        .then(Commands.literal("band").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.RESISTANCE_BAND_ROW))))
+                .then(Commands.literal("settings").executes(ctx -> settings(ctx.getSource())))
+                .then(Commands.literal("care")
+                        .executes(ctx -> statusScreen(ctx.getSource(), 2))
+                        .then(Commands.literal("hydrate").executes(ctx -> care(ctx.getSource(), CareAction.HYDRATE)))
+                        .then(Commands.literal("bandage").executes(ctx -> care(ctx.getSource(), CareAction.BANDAGE)))
+                        .then(Commands.literal("first_aid").executes(ctx -> care(ctx.getSource(), CareAction.FIRST_AID)))
+                        .then(Commands.literal("warm").executes(ctx -> care(ctx.getSource(), CareAction.WARM)))
+                        .then(Commands.literal("cool").executes(ctx -> care(ctx.getSource(), CareAction.COOL))))
                 .then(Commands.literal("help").executes(ctx -> help(ctx.getSource())))
                 .then(Commands.literal("drink").executes(ctx -> drink(ctx.getSource())))
                 .then(Commands.literal("reset")
@@ -40,8 +62,24 @@ public final class EarthHumanCommands {
                                         .executes(ctx -> setFatigue(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "value")))))
                         .then(Commands.literal("temperature")
                                 .then(Commands.argument("value", DoubleArgumentType.doubleArg(32.0D, 42.5D))
-                                        .executes(ctx -> setTemperature(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "value"))))))
-                .executes(ctx -> status(ctx.getSource()));
+                                        .executes(ctx -> setTemperature(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "value")))))
+                        .then(Commands.literal("body")
+                                .then(Commands.argument("part", StringArgumentType.word())
+                                .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0D))
+                                                .executes(ctx -> setBodyPart(ctx.getSource(),
+                                                        StringArgumentType.getString(ctx, "part"),
+                                                        DoubleArgumentType.getDouble(ctx, "value")))))))
+                .executes(ctx -> statusScreen(ctx.getSource(), 0));
+    }
+
+    private static int statusScreen(CommandSourceStack source, int initialTab) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        HumanNetwork.openStatus(player, initialTab);
+        return 1;
     }
 
     private static int status(CommandSourceStack source) {
@@ -58,6 +96,15 @@ public final class EarthHumanCommands {
                 String.format(java.util.Locale.ROOT, "%.1f", status.bodyTemperature), temperatureText(status.bodyTemperature)), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.status.fatigue",
                 Math.round(status.fatigue), fatigueText(status.fatigue)), false);
+        source.sendSuccess(() -> Component.translatable(
+                "message.earth_human.status.rules",
+                Component.translatable("config.earth_human.preset." + EarthHumanConfig.preset().id),
+                Component.translatable("config.earth_human.bridge." + EarthHumanConfig.healthBridgeMode().id)), false);
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        BodyPart worst = body.worstPart(false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.status.body",
+                Component.translatable(worst.translationKey()),
+                String.format(java.util.Locale.ROOT, "%.0f", body.percent(worst) * 100.0D)), false);
         ArcanaHumanBridge arcana = ArcanaHumanBridge.read(player);
         if (arcana.hasAny()) {
             source.sendSuccess(() -> Component.translatable("message.earth_human.status.arcana",
@@ -70,9 +117,48 @@ public final class EarthHumanCommands {
         return 1;
     }
 
+    private static int settings(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        HumanNetwork.openStatus(player, 3);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.settings.opened"), false);
+        return 1;
+    }
+
+    private static int care(CommandSourceStack source, CareAction action) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        return HumanCareActions.request(player, action.id) ? 1 : 0;
+    }
+
+    private static int body(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.body.title"), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.body.vanilla_head"), false);
+        for (BodyPart part : BodyPart.values()) {
+            source.sendSuccess(() -> body.describeLine(part), false);
+        }
+        source.sendSuccess(() -> Component.translatable("message.earth_human.body.hint"), false);
+        return 1;
+    }
+
     private static int help(CommandSourceStack source) {
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.title"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.status"), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.help.body"), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.help.training"), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.help.settings"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.thirst"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.fatigue"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.temperature"), false);
@@ -103,9 +189,49 @@ public final class EarthHumanCommands {
         HumanStatus status = HumanStatus.get(player);
         status.reset();
         status.save(player);
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        body.reset();
+        body.ensureHeadHealthLimit(player);
+        body.syncVanillaFromHead(player);
+        body.save(player);
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        training.reset();
+        training.save(player);
         HumanNetwork.sync(player, status);
         source.sendSuccess(() -> Component.translatable("message.earth_human.reset.done"), false);
         return 1;
+    }
+
+    private static int training(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.training.title"), false);
+        for (BodyPart part : BodyPart.values()) {
+            if (part == BodyPart.HEAD) {
+                continue;
+            }
+            source.sendSuccess(() -> training.describeLine(part), false);
+        }
+        source.sendSuccess(() -> Component.translatable("message.earth_human.training.hint", HumanExercise.availableActionsText()), false);
+        return 1;
+    }
+
+    private static int exerciseHelp(CommandSourceStack source) {
+        source.sendSuccess(() -> Component.translatable("message.earth_human.training.exercise_help", HumanExercise.availableActionsText()), false);
+        return 1;
+    }
+
+    private static int exercise(CommandSourceStack source, ExerciseAction action) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        return HumanExercise.apply(player, action, false) ? 1 : 0;
     }
 
     private static int setHydration(CommandSourceStack source, double value) {
@@ -118,6 +244,32 @@ public final class EarthHumanCommands {
 
     private static int setTemperature(CommandSourceStack source, double value) {
         return set(source, value, "temperature");
+    }
+
+    private static int setBodyPart(CommandSourceStack source, String partId, double value) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        BodyPart part = BodyPart.byId(partId);
+        if (part == null) {
+            source.sendFailure(Component.translatable("message.earth_human.body.unknown_part", partId));
+            return 0;
+        }
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        body.ensureHeadHealthLimit(player);
+        body.setHealth(part, value);
+        if (part == BodyPart.HEAD) {
+            body.ensureHeadHealthLimit(player);
+            body.syncVanillaFromHead(player);
+        }
+        body.save(player);
+        HumanNetwork.syncBody(player, body);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.body.set.done",
+                Component.translatable(part.translationKey()),
+                String.format(java.util.Locale.ROOT, "%.1f", body.health(part))), false);
+        return 1;
     }
 
     private static int set(CommandSourceStack source, double value, String field) {

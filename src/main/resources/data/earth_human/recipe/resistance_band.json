@@ -1,0 +1,12 @@
+{
+  "ingredients": [
+    "minecraft:string",
+    "minecraft:slime_ball",
+    "minecraft:string"
+  ],
+  "result": {
+    "id": "earth_human:resistance_band"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shapeless"
+}

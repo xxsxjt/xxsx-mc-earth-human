@@ -4,12 +4,13 @@ license="All Rights Reserved"
 
 [[mods]]
 modId="earth_human"
-version="0.1.3"
+version="0.1.13"
 displayName="Earth Human"
 description='''
 In-development beta for Minecraft 26.2 + NeoForge 26.2.0.7-beta.
 Earth Human is an independent realistic-human survival layer: hydration,
-body temperature, fatigue and first survival supplies start as a readable playable loop.
+body temperature, fatigue, body-part health, training, quick care and a configurable
+status panel form a readable playable loop.
 '''
 authors="xxsx"
 

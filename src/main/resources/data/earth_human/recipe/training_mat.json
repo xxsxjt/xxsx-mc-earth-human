@@ -1,0 +1,15 @@
+{
+  "result": {
+    "id": "earth_human:training_mat"
+  },
+  "pattern": [
+    "CCC",
+    "LLL"
+  ],
+  "key": {
+    "C": "earth_human:clean_cloth",
+    "L": "minecraft:leather"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}

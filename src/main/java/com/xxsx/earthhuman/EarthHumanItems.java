@@ -60,7 +60,13 @@ public final class EarthHumanItems {
     public static final DeferredItem<Item> CLOTH_MASK = guided("cloth_mask", props -> props.stacksTo(16));
     public static final DeferredItem<Item> DUST_MASK = guided("dust_mask", props -> props.stacksTo(16));
     public static final DeferredItem<Item> SIMPLE_THERMOMETER = guided("simple_thermometer", props -> props.stacksTo(1));
-    public static final DeferredItem<Item> FIELD_HEALTH_NOTE = guided("field_health_note", props -> props.stacksTo(1));
+    public static final DeferredItem<Item> FIELD_HEALTH_NOTE = fieldNote("field_health_note", props -> props.stacksTo(1));
+    public static final DeferredItem<Item> RESISTANCE_BAND = exercise("resistance_band", props -> props.stacksTo(1),
+            ExerciseAction.RESISTANCE_BAND_ROW);
+    public static final DeferredItem<Item> TRAINING_MAT = exercise("training_mat", props -> props.stacksTo(1),
+            ExerciseAction.STRETCH);
+    public static final DeferredItem<Item> SIMPLE_DUMBBELL = exercise("simple_dumbbell", props -> props.stacksTo(1),
+            ExerciseAction.DUMBBELL_CURL);
 
     private EarthHumanItems() {
     }
@@ -78,6 +84,14 @@ public final class EarthHumanItems {
         return item;
     }
 
+    private static DeferredItem<Item> fieldNote(String id, UnaryOperator<Item.Properties> properties) {
+        DeferredItem<Item> item = ITEMS.registerItem(id,
+                props -> new FieldHealthNoteItem(props, "tooltip.earth_human." + id),
+                properties);
+        TAB_ITEMS.add(item);
+        return item;
+    }
+
     private static DeferredItem<Item> consumable(
             String id,
             UnaryOperator<Item.Properties> properties,
@@ -90,6 +104,14 @@ public final class EarthHumanItems {
         DeferredItem<Item> item = ITEMS.registerItem(id,
                 props -> new StatusConsumableItem(props, "tooltip.earth_human." + id, animation,
                         hydrationDelta, temperatureDelta, fatigueDelta, remainder, effects),
+                properties);
+        TAB_ITEMS.add(item);
+        return item;
+    }
+
+    private static DeferredItem<Item> exercise(String id, UnaryOperator<Item.Properties> properties, ExerciseAction action) {
+        DeferredItem<Item> item = ITEMS.registerItem(id,
+                props -> new ExerciseEquipmentItem(props, "tooltip.earth_human." + id, action),
                 properties);
         TAB_ITEMS.add(item);
         return item;

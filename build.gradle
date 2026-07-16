@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.140'
 }
 
-version = '0.1.3'
+version = '0.1.13'
 group = 'com.xxsx.earthhuman'
 base.archivesName = 'earth-human-neoforge-26.2'
 
@@ -13,9 +13,21 @@ neoForge {
     version = '26.2.0.7-beta'
 
     runs {
-        configureEach {
+        client {
             client()
+            gameDirectory = project.file('runs/client')
+            if (project.hasProperty('quickPlayWorld')) {
+                programArgument("--quickPlaySingleplayer=${project.property('quickPlayWorld')}")
+                programArgument('--width')
+                programArgument('640')
+                programArgument('--height')
+                programArgument('480')
+            }
+        }
+        server {
             server()
+            gameDirectory = project.file('runs/server')
+            programArgument('--nogui')
         }
     }
 
@@ -24,6 +36,11 @@ neoForge {
             sourceSet sourceSets.main
         }
     }
+}
+
+dependencies {
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
 }
 
 jar {
@@ -42,4 +59,9 @@ jar {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
+    options.compilerArgs.add('-Xlint:deprecation')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
 }

@@ -1,0 +1,10 @@
+{
+  "replace": false,
+  "values": [
+    "earth_human:filled_canteen",
+    "earth_human:oral_rehydration_salts",
+    "earth_human:electrolyte_tablet",
+    "earth_human:rehydration_drink",
+    "earth_human:restorative_tea"
+  ]
+}

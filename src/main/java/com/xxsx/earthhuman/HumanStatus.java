@@ -9,18 +9,18 @@ public final class HumanStatus {
     private static final String HYDRATION = PREFIX + "hydration";
     private static final String BODY_TEMP = PREFIX + "body_temperature";
     private static final String FATIGUE = PREFIX + "fatigue";
-    private static final String WARN_TICK = PREFIX + "last_warning_tick";
+    private static final String WARN_TIME = PREFIX + "last_warning_game_time";
 
     public double hydration;
     public double bodyTemperature;
     public double fatigue;
-    public int lastWarningTick;
+    public long lastWarningGameTime;
 
-    public HumanStatus(double hydration, double bodyTemperature, double fatigue, int lastWarningTick) {
+    public HumanStatus(double hydration, double bodyTemperature, double fatigue, long lastWarningGameTime) {
         this.hydration = hydration;
         this.bodyTemperature = bodyTemperature;
         this.fatigue = fatigue;
-        this.lastWarningTick = lastWarningTick;
+        this.lastWarningGameTime = lastWarningGameTime;
     }
 
     public static HumanStatus get(Player player) {
@@ -34,7 +34,7 @@ public final class HumanStatus {
                 clamp(data.getDoubleOr(HYDRATION, 100.0D), 0.0D, 100.0D),
                 clamp(data.getDoubleOr(BODY_TEMP, 37.0D), 32.0D, 42.5D),
                 clamp(data.getDoubleOr(FATIGUE, 0.0D), 0.0D, 100.0D),
-                data.getIntOr(WARN_TICK, 0));
+                data.getLongOr(WARN_TIME, -1_000_000L));
     }
 
     public void save(Player player) {
@@ -43,7 +43,7 @@ public final class HumanStatus {
         data.putDouble(HYDRATION, clamp(hydration, 0.0D, 100.0D));
         data.putDouble(BODY_TEMP, clamp(bodyTemperature, 32.0D, 42.5D));
         data.putDouble(FATIGUE, clamp(fatigue, 0.0D, 100.0D));
-        data.putInt(WARN_TICK, lastWarningTick);
+        data.putLong(WARN_TIME, lastWarningGameTime);
     }
 
     public void copyTo(Player player) {
@@ -54,7 +54,7 @@ public final class HumanStatus {
         hydration = 100.0D;
         bodyTemperature = 37.0D;
         fatigue = 0.0D;
-        lastWarningTick = 0;
+        lastWarningGameTime = -1_000_000L;
     }
 
     public static double clamp(double value, double min, double max) {

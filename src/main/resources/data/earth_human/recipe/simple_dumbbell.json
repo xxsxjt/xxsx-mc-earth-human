@@ -1,0 +1,16 @@
+{
+  "result": {
+    "id": "earth_human:simple_dumbbell"
+  },
+  "pattern": [
+    " I ",
+    " S ",
+    " I "
+  ],
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "S": "minecraft:stick"
+  },
+  "category": "misc",
+  "type": "minecraft:crafting_shaped"
+}
