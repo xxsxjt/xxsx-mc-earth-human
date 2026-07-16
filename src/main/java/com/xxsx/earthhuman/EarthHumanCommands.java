@@ -96,6 +96,10 @@ public final class EarthHumanCommands {
                 String.format(java.util.Locale.ROOT, "%.1f", status.bodyTemperature), temperatureText(status.bodyTemperature)), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.status.fatigue",
                 Math.round(status.fatigue), fatigueText(status.fatigue)), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.status.activity",
+                Component.translatable(status.currentActivity.translationKey()),
+                Math.round(status.exertionLoad),
+                exertionText(status.exertionLoad)), false);
         source.sendSuccess(() -> Component.translatable(
                 "message.earth_human.status.rules",
                 Component.translatable("config.earth_human.preset." + EarthHumanConfig.preset().id),
@@ -304,6 +308,12 @@ public final class EarthHumanCommands {
         if (value > 80.0D) return Component.translatable("message.earth_human.state.fatigue.danger");
         if (value > 55.0D) return Component.translatable("message.earth_human.state.fatigue.high");
         return Component.translatable("message.earth_human.state.ok");
+    }
+
+    private static Component exertionText(double value) {
+        if (value > 70.0D) return Component.translatable("message.earth_human.state.exertion.high");
+        if (value > 30.0D) return Component.translatable("message.earth_human.state.exertion.medium");
+        return Component.translatable("message.earth_human.state.exertion.low");
     }
 
     private static Component temperatureText(double value) {

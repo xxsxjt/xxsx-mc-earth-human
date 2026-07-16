@@ -223,23 +223,38 @@ public class EarthHumanStatusScreen extends Screen {
         HumanBodySyncPayload body = EarthHumanClient.syncedBody();
         int bodyW = 64;
         int meterW = Math.max(110, contentWidth() - bodyW - 16);
+        boolean compactHeight = h < 245;
+        int firstMeterY = y + (compactHeight ? 16 : 18);
+        int meterStep = compactHeight ? 25 : 29;
 
         g.text(font, Component.translatable("screen.earth_human.status.overview.heading"), x, y, INK, false);
-        drawMeter(g, x, y + 18, meterW, "screen.earth_human.status.hydration", status.hydration / 100.0D,
+        drawMeter(g, x, firstMeterY, meterW, "screen.earth_human.status.hydration", status.hydration / 100.0D,
                 Math.round(status.hydration) + "%", vitalColor(status.hydration / 100.0D, false));
-        drawMeter(g, x, y + 47, meterW, "screen.earth_human.status.temperature", temperatureRatio(status.bodyTemperature),
+        drawMeter(g, x, firstMeterY + meterStep, meterW, "screen.earth_human.status.temperature", temperatureRatio(status.bodyTemperature),
                 String.format(java.util.Locale.ROOT, "%.1f C", status.bodyTemperature), temperatureColor(status.bodyTemperature));
-        drawMeter(g, x, y + 76, meterW, "screen.earth_human.status.fatigue", status.fatigue / 100.0D,
+        drawMeter(g, x, firstMeterY + meterStep * 2, meterW, "screen.earth_human.status.fatigue", status.fatigue / 100.0D,
                 Math.round(status.fatigue) + "%", vitalColor(status.fatigue / 100.0D, true));
+
+        int activityY = firstMeterY + meterStep * 3 - 2;
+        g.text(font, fit(Component.translatable(
+                "screen.earth_human.status.activity_line",
+                Component.translatable(status.currentActivity.translationKey()),
+                Math.round(status.exertionLoad)), contentWidth()), x, activityY, INK, false);
 
         int bodyX = x + meterW + 17;
         g.text(font, Component.translatable("screen.earth_human.status.body_summary"), bodyX - 4, y, MUTED, false);
         BodyHudRenderer.draw(g, body, bodyX + 7, y + 17, 1.05D, 0.9D);
 
-        int hintY = top + h - 91;
-        g.fill(x, hintY, left + w - 14, hintY + 31, PANEL_ALT);
-        g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 7, hintY + 5, ACCENT, false);
-        g.text(font, fit(recommendation(status, body), contentWidth() - 14), x + 7, hintY + 17, INK, false);
+        if (compactHeight) {
+            int hintY = top + h - 77;
+            g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x, hintY, ACCENT, false);
+            g.text(font, fit(recommendation(status, body), contentWidth()), x, hintY + 11, INK, false);
+        } else {
+            int hintY = top + h - 91;
+            g.fill(x, hintY, left + w - 14, hintY + 31, PANEL_ALT);
+            g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 7, hintY + 5, ACCENT, false);
+            g.text(font, fit(recommendation(status, body), contentWidth() - 14), x + 7, hintY + 17, INK, false);
+        }
     }
 
     private void drawBody(GuiGraphicsExtractor g, int left, int top, int w, int h) {
@@ -336,6 +351,7 @@ public class EarthHumanStatusScreen extends Screen {
         if (worstBody < 0.35D) return Component.translatable("screen.earth_human.status.recommend.body");
         if (status.hydration < 35.0D) return Component.translatable("screen.earth_human.status.recommend.hydration");
         if (status.fatigue > 70.0D) return Component.translatable("screen.earth_human.status.recommend.fatigue");
+        if (status.exertionLoad > 70.0D) return Component.translatable("screen.earth_human.status.recommend.exertion");
         if (status.bodyTemperature < 35.8D) return Component.translatable("screen.earth_human.status.recommend.cold");
         if (status.bodyTemperature > 38.0D) return Component.translatable("screen.earth_human.status.recommend.hot");
         return Component.translatable("screen.earth_human.status.recommend.ok");

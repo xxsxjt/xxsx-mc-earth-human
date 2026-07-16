@@ -259,6 +259,19 @@ public final class HumanBodyStatus {
         return spreadFromUse(player, part, baseAmount);
     }
 
+    public boolean spreadFromUse(ServerPlayer player, double baseAmount, BodyPart... parts) {
+        if (parts == null || parts.length == 0 || player.level().getGameTime() - lastUseSpreadGameTime < 20L) {
+            return false;
+        }
+        BodyPart selected = parts[0];
+        for (int i = 1; i < parts.length; i++) {
+            if (percent(parts[i]) < percent(selected)) {
+                selected = parts[i];
+            }
+        }
+        return spreadFromUse(player, selected, baseAmount);
+    }
+
     public boolean spreadFromUse(ServerPlayer player, BodyPart part, double baseAmount) {
         if (player.level().getGameTime() - lastUseSpreadGameTime < 20L) {
             return false;

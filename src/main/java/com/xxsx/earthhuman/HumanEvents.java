@@ -34,8 +34,6 @@ public final class HumanEvents {
     private static final String MOVEMENT_PREFIX = EarthHuman.MODID + ".movement.";
     private static final String LAST_ON_GROUND = MOVEMENT_PREFIX + "last_on_ground";
     private static final String LAST_JUMP_TIME = MOVEMENT_PREFIX + "last_jump_game_time";
-    private static final String LAST_ACTIVE_TIME = MOVEMENT_PREFIX + "last_active_game_time";
-    private static final String EXERTION_LOAD = MOVEMENT_PREFIX + "exertion_load";
     private static final String LAST_TRACKED_HEALTH = MOVEMENT_PREFIX + "last_tracked_health";
     private static final String SLEEP_PREFIX = EarthHuman.MODID + ".sleep.";
     private static final String SLEEP_ACTIVE = SLEEP_PREFIX + "active";
@@ -63,6 +61,7 @@ public final class HumanEvents {
             if (player.tickCount % 20 != 0) {
                 return;
             }
+            HumanActivityTracker.sample(player);
             HumanStatus status = HumanStatus.get(player);
             if (EarthHumanConfig.hydrationEnabled()) {
                 status.hydration = Math.min(100.0D, status.hydration + 0.05D);
@@ -70,6 +69,10 @@ public final class HumanEvents {
             if (EarthHumanConfig.fatigueEnabled()) {
                 status.fatigue = Math.max(0.0D, status.fatigue - 0.15D);
             }
+            status.exertionLoad = EarthHumanConfig.fatigueEnabled()
+                    ? Math.max(0.0D, status.exertionLoad - 0.12D)
+                    : 0.0D;
+            status.currentActivity = HumanActivityType.IDLE;
             if (EarthHumanConfig.temperatureEnabled()) {
                 status.bodyTemperature += (37.0D - status.bodyTemperature) * 0.03D;
             }
@@ -98,29 +101,22 @@ public final class HumanEvents {
         HumanStatus status = HumanStatus.get(player);
         body.ensureHeadHealthLimit(player);
 
-        double movement = horizontalSpeedSqr(player.getDeltaMovement());
-        boolean moving = movement > 0.0025D;
-        boolean sprinting = player.isSprinting();
-        boolean resting = !moving && player.onGround();
-        double exertionLoad = updateExertionLoad(player, moving, sprinting, player.isSleeping());
-        boolean recentExertion = isRecentExertion(player, exertionLoad);
-        if (moving && EarthHumanConfig.bodyHealthEnabled()) {
-            body.spreadFromUse(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG, sprinting ? 0.28D : 0.12D);
-            HumanExercise.applyPassiveUse(player, BodyPart.LEFT_LEG, sprinting ? 0.065D : 0.030D, sprinting ? 0.070D : 0.030D);
-            HumanExercise.applyPassiveUse(player, BodyPart.RIGHT_LEG, sprinting ? 0.065D : 0.030D, sprinting ? 0.070D : 0.030D);
-        }
+        HumanActivitySample activity = HumanActivityTracker.sample(player);
+        boolean resting = !activity.hasMovement()
+                && player.onGround()
+                && !player.isPassenger()
+                && !player.isInWater()
+                && !player.onClimbable();
+        double exertionLoad = updateExertionLoad(player, status, activity, player.isSleeping(), resting);
+        boolean recentExertion = status.hasRecentExertion(player.level().getGameTime());
+        applyActivityUse(player, body, activity);
         body.applyFunctionalEffects(player);
         ArcanaHumanBridge arcana = ArcanaHumanBridge.read(player);
         arcana.applyPassiveBodySupport(player);
         HumanExercise.recover(player, player.isSleeping(), resting && !recentExertion);
 
         if (EarthHumanConfig.hydrationEnabled()) {
-            double hydrationLoss = 0.010D;
-            if (sprinting) {
-                hydrationLoss += 0.035D;
-            } else if (moving) {
-                hydrationLoss += 0.010D;
-            }
+            double hydrationLoss = 0.010D + activity.hydrationExtraLoss();
             if (player.level().dimension() == Level.NETHER) {
                 hydrationLoss += 0.030D;
             }
@@ -134,10 +130,8 @@ public final class HumanEvents {
             double recoveryMultiplier = arcana.recoveryMultiplier() * EarthHumanConfig.recoveryMultiplier();
             if (player.isSleeping()) {
                 status.fatigue -= 1.25D * recoveryMultiplier;
-            } else if (sprinting) {
-                status.fatigue += (0.46D + exertionLoad * 0.006D) * gainMultiplier;
-            } else if (moving) {
-                status.fatigue += (0.13D + exertionLoad * 0.0025D) * gainMultiplier;
+            } else if (activity.hasMovement()) {
+                status.fatigue += activity.fatigueGain(exertionLoad) * gainMultiplier;
             } else if (resting) {
                 if (recentExertion) {
                     status.fatigue -= 0.025D * recoveryMultiplier;
@@ -413,12 +407,16 @@ public final class HumanEvents {
         }
         body.copyTo(event.getEntity());
         HumanTrainingStatus.get(event.getOriginal()).copyTo(event.getEntity());
+        if (event.getEntity() instanceof ServerPlayer player) {
+            HumanActivityTracker.initialize(player);
+        }
     }
 
     public static void onPlayerLogin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer player)) {
             return;
         }
+        HumanActivityTracker.initialize(player);
         HumanStatus.get(player).save(player);
         HumanBodyStatus body = HumanBodyStatus.get(player);
         if (!player.isCreative() && !player.isSpectator()) {
@@ -602,10 +600,6 @@ public final class HumanEvents {
                 player.hurtServer(level, level.damageSources().hotFloor(), 1.0F);
             }
         }
-    }
-
-    private static double horizontalSpeedSqr(Vec3 vec) {
-        return vec.x * vec.x + vec.z * vec.z;
     }
 
     private static void bridgePassiveVanillaHealthChange(ServerPlayer player, HumanBodyStatus body) {
@@ -962,35 +956,126 @@ public final class HumanEvents {
         body.save(serverPlayer);
     }
 
-    private static double updateExertionLoad(ServerPlayer player, boolean moving, boolean sprinting, boolean sleeping) {
-        CompoundTag data = player.getPersistentData();
-        double load = HumanStatus.clamp(data.getDoubleOr(EXERTION_LOAD, 0.0D), 0.0D, 100.0D);
+    private static void applyActivityUse(ServerPlayer player, HumanBodyStatus body, HumanActivitySample activity) {
+        HumanActivityType type = activity.dominantType();
+        double factor = activity.factor(type);
+        if (factor <= 0.0D) {
+            return;
+        }
+
+        if (EarthHumanConfig.bodyHealthEnabled()) {
+            switch (type) {
+                case WALKING -> body.spreadFromUse(player, 0.12D * factor, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case SPRINTING -> body.spreadFromUse(player, 0.28D * factor, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case SWIMMING -> body.spreadFromUse(player, 0.16D * factor,
+                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case CLIMBING -> body.spreadFromUse(player, 0.20D * factor,
+                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case RIDING -> body.spreadFromUse(player, 0.025D * factor,
+                        BodyPart.TORSO, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case ELYTRA, FLYING -> body.spreadFromUse(player, 0.08D * factor,
+                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
+                default -> {
+                }
+            }
+        }
+
+        switch (type) {
+            case WALKING -> trainLegs(player, 0.030D * factor, 0.030D * factor);
+            case SPRINTING -> trainLegs(player, 0.065D * factor, 0.070D * factor);
+            case SWIMMING -> {
+                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.040D * factor, 0.050D * factor);
+                trainLegs(player, 0.035D * factor, 0.040D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.030D * factor, 0.040D * factor);
+            }
+            case CLIMBING -> {
+                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.055D * factor, 0.070D * factor);
+                trainLegs(player, 0.025D * factor, 0.035D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.025D * factor, 0.040D * factor);
+            }
+            case RIDING -> {
+                trainLegs(player, 0.002D * factor, 0.003D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.004D * factor, 0.006D * factor);
+            }
+            case ELYTRA -> {
+                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.012D * factor, 0.018D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.018D * factor, 0.025D * factor);
+            }
+            case FLYING -> HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.006D * factor, 0.008D * factor);
+            default -> {
+            }
+        }
+    }
+
+    private static void trainLegs(ServerPlayer player, double xpGain, double loadGain) {
+        trainPair(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG, xpGain, loadGain);
+    }
+
+    private static void trainPair(ServerPlayer player, BodyPart first, BodyPart second, double xpGain, double loadGain) {
+        HumanExercise.applyPassiveUse(player, first, xpGain, loadGain);
+        HumanExercise.applyPassiveUse(player, second, xpGain, loadGain);
+    }
+
+    private static double updateExertionLoad(ServerPlayer player, HumanStatus status,
+                                             HumanActivitySample activity, boolean sleeping, boolean resting) {
+        status.currentActivity = resolveActivityType(player, activity, sleeping, resting);
+        if (!EarthHumanConfig.fatigueEnabled()) {
+            status.exertionLoad = 0.0D;
+            return 0.0D;
+        }
+
+        double load = HumanStatus.clamp(status.exertionLoad, 0.0D, 100.0D);
         if (sleeping) {
             load = Math.max(0.0D, load - 1.60D);
-        } else if (sprinting) {
-            load = Math.min(100.0D, load + 0.46D);
-            data.putLong(LAST_ACTIVE_TIME, player.level().getGameTime());
-        } else if (moving) {
-            load = Math.min(100.0D, load + 0.18D);
-            data.putLong(LAST_ACTIVE_TIME, player.level().getGameTime());
-        } else if (player.onGround()) {
-            boolean recent = player.level().getGameTime() - data.getLongOr(LAST_ACTIVE_TIME, -1_000_000L) < 20L * 90L;
+        } else if (activity.hasPhysicalExertion()) {
+            load = Math.min(100.0D, load + activity.exertionGain());
+            status.lastActiveGameTime = player.level().getGameTime();
+        } else if (activity.hasMovement()) {
+            load = HumanStatus.clamp(load - 0.015D + activity.exertionGain(), 0.0D, 100.0D);
+        } else if (resting) {
+            boolean recent = player.level().getGameTime() - status.lastActiveGameTime < 20L * 90L;
             load = Math.max(0.0D, load - (recent || load > 35.0D ? 0.035D : 0.12D));
+        } else if (player.isPassenger()) {
+            load = Math.max(0.0D, load - 0.02D);
         }
-        data.putDouble(EXERTION_LOAD, load);
+        status.exertionLoad = load;
         return load;
     }
 
-    private static void addExertion(ServerPlayer player, double amount) {
-        CompoundTag data = player.getPersistentData();
-        double load = HumanStatus.clamp(data.getDoubleOr(EXERTION_LOAD, 0.0D) + Math.max(0.0D, amount), 0.0D, 100.0D);
-        data.putDouble(EXERTION_LOAD, load);
-        data.putLong(LAST_ACTIVE_TIME, player.level().getGameTime());
+    private static HumanActivityType resolveActivityType(ServerPlayer player, HumanActivitySample activity,
+                                                         boolean sleeping, boolean resting) {
+        if (sleeping) {
+            return HumanActivityType.SLEEPING;
+        }
+        if (activity.hasMovement()) {
+            return activity.dominantType();
+        }
+        if (resting) {
+            return HumanActivityType.RESTING;
+        }
+        if (player.isPassenger()) {
+            return HumanActivityType.RIDING;
+        }
+        if (player.isFallFlying()) {
+            return HumanActivityType.ELYTRA;
+        }
+        if (player.isSwimming() || player.isInWater()) {
+            return HumanActivityType.SWIMMING;
+        }
+        if (player.onClimbable()) {
+            return HumanActivityType.CLIMBING;
+        }
+        return HumanActivityType.IDLE;
     }
 
-    private static boolean isRecentExertion(ServerPlayer player, double load) {
-        CompoundTag data = player.getPersistentData();
-        return load > 18.0D || player.level().getGameTime() - data.getLongOr(LAST_ACTIVE_TIME, -1_000_000L) < 20L * 45L;
+    private static void addExertion(ServerPlayer player, double amount) {
+        if (!EarthHumanConfig.fatigueEnabled()) {
+            return;
+        }
+        HumanStatus status = HumanStatus.get(player);
+        status.exertionLoad = HumanStatus.clamp(status.exertionLoad + Math.max(0.0D, amount), 0.0D, 100.0D);
+        status.lastActiveGameTime = player.level().getGameTime();
+        status.save(player);
     }
 
     private static float armUseSpeedMultiplier(HumanBodyStatus body) {

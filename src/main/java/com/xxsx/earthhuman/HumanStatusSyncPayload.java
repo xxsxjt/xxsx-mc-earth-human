@@ -5,7 +5,12 @@ import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 
-public record HumanStatusSyncPayload(double hydration, double bodyTemperature, double fatigue) implements CustomPacketPayload {
+public record HumanStatusSyncPayload(
+        double hydration,
+        double bodyTemperature,
+        double fatigue,
+        double exertionLoad,
+        int currentActivityId) implements CustomPacketPayload {
     public static final Type<HumanStatusSyncPayload> TYPE =
             new Type<>(EarthHuman.id("human_status_sync"));
 
@@ -13,10 +18,17 @@ public record HumanStatusSyncPayload(double hydration, double bodyTemperature, d
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::hydration,
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::bodyTemperature,
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::fatigue,
+            ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::exertionLoad,
+            ByteBufCodecs.VAR_INT.cast(), HumanStatusSyncPayload::currentActivityId,
             HumanStatusSyncPayload::new);
 
     public static HumanStatusSyncPayload fromStatus(HumanStatus status) {
-        return new HumanStatusSyncPayload(status.hydration, status.bodyTemperature, status.fatigue);
+        return new HumanStatusSyncPayload(
+                status.hydration,
+                status.bodyTemperature,
+                status.fatigue,
+                status.exertionLoad,
+                status.currentActivity.networkId);
     }
 
     @Override

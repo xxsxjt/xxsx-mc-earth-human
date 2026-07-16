@@ -7,6 +7,7 @@ import com.xxsx.earthhuman.HumanCareActionPayload;
 import com.xxsx.earthhuman.HumanCareCancelPayload;
 import com.xxsx.earthhuman.HumanCareStatePayload;
 import com.xxsx.earthhuman.HumanBodySyncPayload;
+import com.xxsx.earthhuman.HumanActivityType;
 import com.xxsx.earthhuman.HumanOpenSettingsPayload;
 import com.xxsx.earthhuman.HumanOpenStatusPayload;
 import com.xxsx.earthhuman.HumanStatus;
@@ -66,7 +67,8 @@ public final class EarthHumanClient {
 
     private static void handleStatusSync(HumanStatusSyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> syncedStatus = new HumanStatus(
-                payload.hydration(), payload.bodyTemperature(), payload.fatigue(), 0));
+                payload.hydration(), payload.bodyTemperature(), payload.fatigue(), 0,
+                payload.exertionLoad(), HumanActivityType.byNetworkId(payload.currentActivityId()), 0));
     }
 
     private static void handleBodySync(HumanBodySyncPayload payload, IPayloadContext context) {
