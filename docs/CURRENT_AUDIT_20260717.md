@@ -3,7 +3,7 @@
 日期：2026-07-18
 目标平台：Minecraft 26.2 / NeoForge 26.2.0.7-beta
 当前工作树版本：0.1.16
-当前 Git 基线：0.1.14
+当前 Git 基线：0.1.16（提交 `8fb3b15`，tag `earth-human-neoforge-26.2-v0.1.16`）
 
 ## 1. 审查边界与依据
 
@@ -51,6 +51,7 @@
 - 当前部署构建产物 SHA256：`E1E9F3476D7FA07A95C2E6F59893DF83BE97BDB249E18AB8609C07642B40F26B`。
 - 26.2 NeoForge 专服冒烟验证已到达 `Done (0.299s)`：Earth Human 0.1.16、Earth on Minecraft 0.1.9、Magic 0.4.2、玄幻 0.4.2 均完成加载；加载 1747 个配方、1688 个进度，无 Earth Human 新错误。
 - 已部署实例 jar 与构建产物 SHA256 一致，实例 `mods` 中只有一个活动 Earth Human jar；旧版本均为 `.jar.bak-*`。
+- GitHub prerelease 已发布：[earth-human-neoforge-26.2-v0.1.16](https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.2-v0.1.16)；附件 HEAD 返回 302，远端下载 SHA256 与本地一致。
 
 ### 2.3 仍不能算作已完成
 
@@ -81,7 +82,7 @@
 
 #### 3.3 版本真值不一致
 
-源码、README、metadata 和构建目标已是 0.1.16；本轮专服验证已通过，剩余风险是 Git 远端尚未建立对应提交/tag/release，以及客户端交互尚未由真实玩家复核。发布前必须先建立可复现检查点。
+源码、README、metadata、Git 提交/tag/release 和构建目标已对齐到 0.1.16；剩余风险是客户端交互尚未由真实玩家复核，以及事件级复杂伤害组合尚未覆盖。
 
 ## 4. 下一阶段执行计划
 
