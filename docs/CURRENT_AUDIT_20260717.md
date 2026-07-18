@@ -3,7 +3,7 @@
 日期：2026-07-18
 目标平台：Minecraft 26.2 / NeoForge 26.2.0.7-beta
 当前工作树版本：0.1.18
-当前 Git 基线：0.1.18，提交 `bd030d3`，tag `earth-human-neoforge-26.2-v0.1.18`
+当前 Git 基线：0.1.18；发布代码提交 `bd030d3`，当前验证记录提交 `05575bd`，tag `earth-human-neoforge-26.2-v0.1.18`
 
 ## 1. 审查边界与依据
 
