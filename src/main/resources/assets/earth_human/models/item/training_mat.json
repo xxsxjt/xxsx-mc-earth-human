@@ -1,6 +1,6 @@
 {
   "textures": {
-    "layer0": "earth_human:item/clean_cloth"
+    "layer0": "earth_human:item/training_mat"
   },
   "parent": "minecraft:item/generated"
 }

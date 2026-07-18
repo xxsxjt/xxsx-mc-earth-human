@@ -10,6 +10,7 @@ import com.xxsx.earthhuman.HumanBodySyncPayload;
 import com.xxsx.earthhuman.HumanActivityType;
 import com.xxsx.earthhuman.HumanOpenSettingsPayload;
 import com.xxsx.earthhuman.HumanOpenStatusPayload;
+import com.xxsx.earthhuman.HumanOpenGuidePayload;
 import com.xxsx.earthhuman.HumanStatus;
 import com.xxsx.earthhuman.HumanStatusSyncPayload;
 import net.minecraft.client.Minecraft;
@@ -20,6 +21,8 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.ContainerScreenEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
@@ -29,7 +32,7 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class EarthHumanClient {
-    private static final int ROW_HEIGHT = 10;
+    private static final int ROW_HEIGHT = 14;
     private static HumanStatus syncedStatus = new HumanStatus(100.0D, 37.0D, 0.0D, 0);
     private static HumanBodySyncPayload syncedBody = new HumanBodySyncPayload(
             1.0D, 1.0D, 1.0D, 1.0D, 1.0D, 1.0D);
@@ -45,6 +48,8 @@ public final class EarthHumanClient {
         modBus.addListener(EarthHumanClient::registerGuiLayers);
         modBus.addListener(EarthHumanClient::registerPayloadHandlers);
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onItemTooltip);
+        NeoForge.EVENT_BUS.addListener(EarthHumanClient::onContainerForeground);
+        NeoForge.EVENT_BUS.addListener(EarthHumanClient::onScreenMousePressed);
     }
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
@@ -56,6 +61,7 @@ public final class EarthHumanClient {
         event.register(HumanBodySyncPayload.TYPE, EarthHumanClient::handleBodySync);
         event.register(HumanOpenSettingsPayload.TYPE, EarthHumanClient::handleOpenSettings);
         event.register(HumanOpenStatusPayload.TYPE, EarthHumanClient::handleOpenStatus);
+        event.register(HumanOpenGuidePayload.TYPE, EarthHumanClient::handleOpenGuide);
         event.register(HumanCareStatePayload.TYPE, EarthHumanClient::handleCareState);
     }
 
@@ -63,6 +69,18 @@ public final class EarthHumanClient {
         if (event.getItemStack().getItem() instanceof EarthHumanTooltipProvider provider) {
             provider.appendEarthHumanTooltip(event.getToolTip()::add);
         }
+    }
+
+    private static void onContainerForeground(ContainerScreenEvent.Render.Foreground event) {
+        InventoryBodySummary.render(event, syncedBody);
+    }
+
+    private static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        if (event.getButton() != 0 || !InventoryBodySummary.hitTest(event.getScreen(), event.getMouseX(), event.getMouseY())) {
+            return;
+        }
+        event.setCanceled(true);
+        openStatusScreen(EarthHumanStatusScreen.TAB_BODY);
     }
 
     private static void handleStatusSync(HumanStatusSyncPayload payload, IPayloadContext context) {
@@ -81,6 +99,10 @@ public final class EarthHumanClient {
 
     private static void handleOpenStatus(HumanOpenStatusPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> openStatusScreen(payload.initialTab()));
+    }
+
+    private static void handleOpenGuide(HumanOpenGuidePayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> Minecraft.getInstance().gui.setScreen(new EarthHumanGuideScreen(null)));
     }
 
     private static void handleCareState(HumanCareStatePayload payload, IPayloadContext context) {
@@ -107,13 +129,19 @@ public final class EarthHumanClient {
         int x = graphics.guiWidth() / 2 + 10;
         int y = graphics.guiHeight() - minecraft.gui.hud.rightHeight;
 
-        graphics.fill(x - 1, y, x + 82, y + 9, 0x78000000);
-        drawCell(graphics, font, x, y + 1, 25, hydrationColor(status.hydration),
-                hudLabel("hud.earth_human.hydration.short", status.hydration));
-        drawCell(graphics, font, x + 27, y + 1, 25, temperatureColor(status.bodyTemperature),
-                hudLabel("hud.earth_human.temperature.short", status.bodyTemperature));
-        drawCell(graphics, font, x + 54, y + 1, 27, fatigueColor(status.fatigue),
-                hudLabel("hud.earth_human.fatigue.short", status.fatigue));
+        int firstWidth = 42;
+        int secondWidth = 48;
+        int thirdWidth = 47;
+        graphics.fill(x - 2, y - 1, x + firstWidth + secondWidth + thirdWidth + 4, y + 12, 0xA8141A1C);
+        graphics.outline(x - 2, y - 1, firstWidth + secondWidth + thirdWidth + 6, 13, 0xAA52615D);
+        drawCell(graphics, font, x, y + 1, firstWidth, status.hydration / 100.0D, hydrationColor(status.hydration),
+                hudLabel("hud.earth_human.hydration.short", status.hydration, false));
+        drawCell(graphics, font, x + firstWidth + 2, y + 1, secondWidth,
+                (status.bodyTemperature - 32.0D) / 10.5D, temperatureColor(status.bodyTemperature),
+                hudLabel("hud.earth_human.temperature.short", status.bodyTemperature, true));
+        drawCell(graphics, font, x + firstWidth + secondWidth + 4, y + 1, thirdWidth,
+                status.fatigue / 100.0D, fatigueColor(status.fatigue),
+                hudLabel("hud.earth_human.fatigue.short", status.fatigue, false));
 
         minecraft.gui.hud.rightHeight += ROW_HEIGHT;
     }
@@ -166,9 +194,12 @@ public final class EarthHumanClient {
         BodyHudRenderer.draw(graphics, syncedBody, x, y, scale, HumanHudClientConfig.bodyHudOpacity());
     }
 
-    private static void drawCell(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int color, String label) {
-        graphics.fill(x, y + 7, x + width, y + 8, color | 0xFF000000);
-        graphics.text(font, label, x + 1, y - 1, color | 0xFF000000, true);
+    private static void drawCell(GuiGraphicsExtractor graphics, Font font, int x, int y, int width,
+                                 double ratio, int color, String label) {
+        graphics.fill(x, y + 8, x + width, y + 10, 0xFF27302F);
+        int fillWidth = Math.max(1, (int) Math.round(width * Math.max(0.0D, Math.min(1.0D, ratio))));
+        graphics.fill(x, y + 8, x + fillWidth, y + 10, color | 0xFF000000);
+        graphics.text(font, label, x + 1, y - 1, 0xFFF0F2EC, false);
     }
 
     private static int hydrationColor(double value) {
@@ -189,8 +220,14 @@ public final class EarthHumanClient {
         return HumanHudClientConfig.hudTheme().fatigueColor;
     }
 
-    private static String hudLabel(String key, double value) {
+    private static String hudLabel(String key, double value, boolean decimal) {
         String label = Component.translatable(key).getString();
-        return HumanHudClientConfig.showNumericValues() ? label + Math.round(value) : label;
+        if (!HumanHudClientConfig.showNumericValues()) {
+            return label;
+        }
+        String rendered = decimal
+                ? String.format(java.util.Locale.ROOT, "%.1f", value)
+                : Long.toString(Math.round(value));
+        return label + " " + rendered;
     }
 }

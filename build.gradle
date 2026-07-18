@@ -3,7 +3,7 @@ plugins {
     id 'net.neoforged.moddev' version '2.0.140'
 }
 
-version = '0.1.14'
+version = '0.1.16'
 group = 'com.xxsx.earthhuman'
 base.archivesName = 'earth-human-neoforge-26.2'
 

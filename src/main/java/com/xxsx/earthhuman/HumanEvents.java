@@ -790,17 +790,7 @@ public final class HumanEvents {
     private static BodyPart bodyPartFromImpactPoint(ServerPlayer player, Vec3 hit) {
         double vertical = verticalRatio(player, hit);
         double side = localRightOffset(player, hit);
-
-        if (vertical >= 0.78D) {
-            return BodyPart.HEAD;
-        }
-        if (vertical < 0.42D) {
-            return sidePart(player, hit, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-        }
-        if (Math.abs(side) > 0.28D) {
-            return sidePart(player, hit, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
-        }
-        return BodyPart.TORSO;
+        return BodyHitResolver.fromImpactPoint(vertical, side);
     }
 
     private static double verticalRatio(ServerPlayer player, Vec3 hit) {
@@ -812,13 +802,11 @@ public final class HumanEvents {
     private static double localRightOffset(ServerPlayer player, Vec3 hit) {
         Vec3 center = player.getBoundingBox().getCenter();
         Vec3 relative = hit.subtract(center);
-        double yaw = Math.toRadians(player.getYRot());
-        Vec3 right = new Vec3(Math.cos(yaw), 0.0D, Math.sin(yaw));
-        return relative.dot(right);
+        return BodyHitResolver.localRightOffset(relative.x, relative.z, player.getYRot());
     }
 
     private static BodyPart sidePart(ServerPlayer player, Vec3 hit, BodyPart left, BodyPart right) {
-        return localRightOffset(player, hit) < 0.0D ? left : right;
+        return BodyHitResolver.sidePart(localRightOffset(player, hit), left, right);
     }
 
     private static Vec3 closestPointOnPlayerBox(ServerPlayer player, Vec3 point) {

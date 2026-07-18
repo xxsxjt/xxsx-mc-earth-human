@@ -4,6 +4,9 @@ build/
 out/
 runs/
 run/
+tmp/
+__pycache__/
+*.pyc
 *.log
 *.tmp
 *.bak

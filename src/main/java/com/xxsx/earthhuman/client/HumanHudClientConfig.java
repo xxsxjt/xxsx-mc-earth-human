@@ -118,6 +118,26 @@ public final class HumanHudClientConfig {
         save();
     }
 
+    public static void setHudTheme(HudTheme value) {
+        hudTheme = value == null ? HudTheme.CLINICAL : value;
+        save();
+    }
+
+    public static void setBodyHudCorner(HudCorner value) {
+        bodyHudCorner = value == null ? HudCorner.BOTTOM_LEFT : value;
+        save();
+    }
+
+    public static void setBodyHudScale(double value) {
+        bodyHudScale = clamp(value, 0.6D, 2.0D);
+        save();
+    }
+
+    public static void setBodyHudOpacity(double value) {
+        bodyHudOpacity = clamp(value, 0.1D, 1.0D);
+        save();
+    }
+
     public static void cycleTheme() {
         HudTheme[] values = HudTheme.values();
         hudTheme = values[(hudTheme.ordinal() + 1) % values.length];

@@ -1,7 +1,17 @@
 # 地球：人类兼容接口
 
 目标版本：Minecraft 26.2 / NeoForge 26.2.0.7-beta
-当前实现：v0.1.14
+当前实现：v0.1.16
+
+## Java API v1
+
+可选联动应优先调用 `com.xxsx.earthhuman.api.EarthHumanApi`，不要直接读写 `earth_human.*` 玩家持久数据。
+
+- `apiVersion()`：当前返回 `1`。
+- `snapshot(ServerPlayer)`：读取服务端权威的人体状态摘要。
+- `recover(ServerPlayer, fatigueReduction, bodyHealPerPart, bodyPartIds...)`：按当前身体模型、治疗倍率和同步流程执行恢复。
+
+API 缺失或版本不匹配时，调用方应安全关闭联动，不能回退为写私有 NBT。
 
 ## 设计边界
 

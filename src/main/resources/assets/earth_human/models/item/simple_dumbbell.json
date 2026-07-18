@@ -1,6 +1,6 @@
 {
   "textures": {
-    "layer0": "minecraft:item/iron_ingot"
+    "layer0": "earth_human:item/simple_dumbbell"
   },
   "parent": "minecraft:item/generated"
 }

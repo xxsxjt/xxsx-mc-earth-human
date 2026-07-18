@@ -39,27 +39,27 @@ public final class EarthHumanItems {
     public static final DeferredItem<Item> GLUCOSE_GEL = consumable("glucose_gel", props -> props.stacksTo(16),
             ItemUseAnimation.EAT, 4.0D, 0.0D, -12.0D, null);
     public static final DeferredItem<Item> COOLING_PACK = consumable("cooling_pack", props -> props.stacksTo(16),
-            ItemUseAnimation.EAT, 0.0D, -0.6D, -2.0D, null);
+            ItemUseAnimation.BRUSH, 0.0D, -0.6D, -2.0D, null);
     public static final DeferredItem<Item> HEAT_PACK = consumable("heat_pack", props -> props.stacksTo(16),
-            ItemUseAnimation.EAT, 0.0D, 0.6D, -2.0D, null);
+            ItemUseAnimation.BRUSH, 0.0D, 0.6D, -2.0D, null);
     public static final DeferredItem<Item> EMERGENCY_BLANKET = consumable("emergency_blanket", props -> props.stacksTo(8),
-            ItemUseAnimation.EAT, 0.0D, 0.8D, -4.0D, null);
+            ItemUseAnimation.BLOCK, 0.0D, 0.8D, -4.0D, null);
     public static final DeferredItem<Item> CLEAN_CLOTH = guided("clean_cloth", props -> props.stacksTo(64));
     public static final DeferredItem<Item> SIMPLE_BANDAGE = consumable("simple_bandage", props -> props.stacksTo(32),
-            ItemUseAnimation.EAT, 0.0D, 0.0D, -4.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -4.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 80, 0));
     public static final DeferredItem<Item> STERILE_BANDAGE = consumable("sterile_bandage", props -> props.stacksTo(32),
-            ItemUseAnimation.EAT, 0.0D, 0.0D, -8.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -8.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 140, 0));
     public static final DeferredItem<Item> DISINFECTANT_WIPE = guided("disinfectant_wipe", props -> props.stacksTo(32));
     public static final DeferredItem<Item> ANTISEPTIC_BOTTLE = guided("antiseptic_bottle", props -> props.stacksTo(16));
     public static final DeferredItem<Item> BASIC_FIRST_AID_KIT = consumable("basic_first_aid_kit", props -> props.stacksTo(8),
-            ItemUseAnimation.EAT, 0.0D, 0.0D, -18.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -18.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 200, 0),
             new StatusConsumableItem.EffectSpec(MobEffects.ABSORPTION, 300, 0));
     public static final DeferredItem<Item> CLOTH_MASK = guided("cloth_mask", props -> props.stacksTo(16));
     public static final DeferredItem<Item> DUST_MASK = guided("dust_mask", props -> props.stacksTo(16));
-    public static final DeferredItem<Item> SIMPLE_THERMOMETER = guided("simple_thermometer", props -> props.stacksTo(1));
+    public static final DeferredItem<Item> SIMPLE_THERMOMETER = thermometer("simple_thermometer", props -> props.stacksTo(1));
     public static final DeferredItem<Item> FIELD_HEALTH_NOTE = fieldNote("field_health_note", props -> props.stacksTo(1));
     public static final DeferredItem<Item> RESISTANCE_BAND = exercise("resistance_band", props -> props.stacksTo(1),
             ExerciseAction.RESISTANCE_BAND_ROW);
@@ -87,6 +87,14 @@ public final class EarthHumanItems {
     private static DeferredItem<Item> fieldNote(String id, UnaryOperator<Item.Properties> properties) {
         DeferredItem<Item> item = ITEMS.registerItem(id,
                 props -> new FieldHealthNoteItem(props, "tooltip.earth_human." + id),
+                properties);
+        TAB_ITEMS.add(item);
+        return item;
+    }
+
+    private static DeferredItem<Item> thermometer(String id, UnaryOperator<Item.Properties> properties) {
+        DeferredItem<Item> item = ITEMS.registerItem(id,
+                props -> new ThermometerItem(props, "tooltip.earth_human." + id),
                 properties);
         TAB_ITEMS.add(item);
         return item;

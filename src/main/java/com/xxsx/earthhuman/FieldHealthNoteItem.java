@@ -14,7 +14,7 @@ public final class FieldHealthNoteItem extends GuidedItem {
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
         if (!level.isClientSide() && player instanceof net.minecraft.server.level.ServerPlayer serverPlayer) {
-            HumanNetwork.openStatus(serverPlayer, 0);
+            HumanNetwork.openGuide(serverPlayer);
         }
         return InteractionResult.SUCCESS;
     }

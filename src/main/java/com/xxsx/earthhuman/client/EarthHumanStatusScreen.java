@@ -2,19 +2,26 @@ package com.xxsx.earthhuman.client;
 
 import com.xxsx.earthhuman.BodyPart;
 import com.xxsx.earthhuman.CareAction;
+import com.xxsx.earthhuman.EarthHumanItems;
 import com.xxsx.earthhuman.HumanBodySyncPayload;
 import com.xxsx.earthhuman.HumanCareStatePayload;
 import com.xxsx.earthhuman.HumanStatus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.EnumMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.function.DoubleConsumer;
 
 public class EarthHumanStatusScreen extends Screen {
     public static final int TAB_OVERVIEW = 0;
@@ -22,15 +29,18 @@ public class EarthHumanStatusScreen extends Screen {
     public static final int TAB_CARE = 2;
     public static final int TAB_SETTINGS = 3;
 
-    private static final int BACKDROP = 0xC80B0F12;
-    private static final int PANEL = 0xF0171D21;
-    private static final int PANEL_ALT = 0xFF20282D;
-    private static final int EDGE = 0xFF52616A;
-    private static final int ACCENT = 0xFF63D6C5;
-    private static final int INK = 0xFFF1F5F3;
-    private static final int MUTED = 0xFFAAB7B8;
-    private static final int DANGER = 0xFFFF6B6B;
-    private static final int WARNING = 0xFFFFC857;
+    private static final int BACKDROP = 0xC0101314;
+    private static final int FRAME = 0xFF111719;
+    private static final int SURFACE = 0xFF1B2325;
+    private static final int SURFACE_ALT = 0xFF242E30;
+    private static final int LEDGER = 0x253E5552;
+    private static final int EDGE = 0xFF667673;
+    private static final int ACCENT = 0xFF7BB69F;
+    private static final int ACCENT_DARK = 0xFF385B50;
+    private static final int MEDICAL_WHITE = 0xFFF0F2EC;
+    private static final int MUTED = 0xFFB3BFBA;
+    private static final int DANGER = 0xFFD85A56;
+    private static final int WARNING = 0xFFD5A44F;
 
     private final Screen parent;
     private final Map<CareAction, Button> careButtons = new EnumMap<>(CareAction.class);
@@ -48,26 +58,18 @@ public class EarthHumanStatusScreen extends Screen {
     protected void init() {
         careButtons.clear();
         cancelCareButton = null;
-        int left = panelLeft();
-        int top = panelTop();
-        int navX = left + 10;
-        int navY = top + 44;
-        int navW = navWidth();
-        addTabButton(navX, navY, navW, TAB_OVERVIEW, "screen.earth_human.status.tab.overview");
-        addTabButton(navX, navY + 25, navW, TAB_BODY, "screen.earth_human.status.tab.body");
-        addTabButton(navX, navY + 50, navW, TAB_CARE, "screen.earth_human.status.tab.care");
-        addTabButton(navX, navY + 75, navW, TAB_SETTINGS, "screen.earth_human.status.tab.settings");
+        addTabButtons();
 
         if (tab == TAB_OVERVIEW) {
             addOverviewButtons();
         } else if (tab == TAB_CARE) {
             addCareButtons();
         } else if (tab == TAB_SETTINGS) {
-            addSettingsButtons();
+            addSettingsWidgets();
         }
 
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.close"), b -> onClose())
-                .bounds(left + panelWidth() - 72, top + panelHeight() - 28, 60, 20)
+                .bounds(panelLeft() + panelWidth() - 72, panelTop() + panelHeight() - 27, 60, 18)
                 .build());
     }
 
@@ -86,20 +88,23 @@ public class EarthHumanStatusScreen extends Screen {
         int w = panelWidth();
         int h = panelHeight();
 
-        g.fill(left, top, left + w, top + h, PANEL);
+        g.fill(left, top, left + w, top + h, FRAME);
         g.outline(left, top, w, h, EDGE);
-        g.fill(left + 1, top + 1, left + w - 1, top + 36, PANEL_ALT);
-        int dividerX = left + navWidth() + 14;
-        g.fill(dividerX, top + 37, dividerX + 1, top + h - 36, EDGE);
-        g.fill(left + 1, top + 35, left + w - 1, top + 37, ACCENT);
-        g.text(font, Component.translatable("screen.earth_human.status.title"), left + 14, top + 11, INK, false);
-        g.text(font, fit(Component.translatable("screen.earth_human.status.subtitle"), w - 146), left + 132, top + 12, MUTED, false);
+        g.fill(left + 3, top + 3, left + w - 3, top + 33, SURFACE_ALT);
+        g.fill(left + 3, top + 33, left + 7, top + h - 4, ACCENT_DARK);
+        g.fill(left + 7, top + 60, left + w - 3, top + h - 34, SURFACE);
+        drawLedger(g, left + 8, top + 61, left + w - 4, top + h - 35);
+        drawMedicalMark(g, left + 13, top + 10);
+        g.text(font, Component.translatable("screen.earth_human.status.title"), left + 36, top + 9, MEDICAL_WHITE, false);
+        g.text(font, fit(Component.translatable("screen.earth_human.status.subtitle"), Math.max(80, w - 250)),
+                left + 192, top + 11, MUTED, false);
+        g.fill(left + 7, top + 58, left + w - 3, top + 60, ACCENT);
 
         switch (tab) {
-            case TAB_BODY -> drawBody(g, left, top, w, h);
-            case TAB_CARE -> drawCare(g, left, top, w, h);
-            case TAB_SETTINGS -> drawSettings(g, left, top, w, h);
-            default -> drawOverview(g, left, top, w, h);
+            case TAB_BODY -> drawBody(g);
+            case TAB_CARE -> drawCare(g);
+            case TAB_SETTINGS -> drawSettings(g);
+            default -> drawOverview(g);
         }
         super.extractRenderState(g, mouseX, mouseY, delta);
     }
@@ -113,6 +118,18 @@ public class EarthHumanStatusScreen extends Screen {
     public void onClose() {
         HumanHudClientConfig.save();
         Minecraft.getInstance().gui.setScreen(parent);
+    }
+
+    private void addTabButtons() {
+        int gap = 4;
+        int available = panelWidth() - 28;
+        int tabWidth = (available - gap * 3) / 4;
+        int x = panelLeft() + 14;
+        int y = panelTop() + 36;
+        addTabButton(x, y, tabWidth, TAB_OVERVIEW, "screen.earth_human.status.tab.overview");
+        addTabButton(x + tabWidth + gap, y, tabWidth, TAB_BODY, "screen.earth_human.status.tab.body");
+        addTabButton(x + (tabWidth + gap) * 2, y, tabWidth, TAB_CARE, "screen.earth_human.status.tab.care");
+        addTabButton(x + (tabWidth + gap) * 3, y, tabWidth, TAB_SETTINGS, "screen.earth_human.status.tab.settings");
     }
 
     private void addTabButton(int x, int y, int width, int targetTab, String key) {
@@ -132,37 +149,35 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private void addOverviewButtons() {
-        int left = contentLeft();
-        int top = panelTop();
+        int y = panelTop() + panelHeight() - 27;
+        int x = contentLeft();
+        int width = compactWidth() ? 78 : 94;
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.open_body"), b -> switchTab(TAB_BODY))
-                .bounds(left, top + panelHeight() - 56, 98, 20)
+                .bounds(x, y, width, 18)
                 .build());
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.open_care"), b -> switchTab(TAB_CARE))
-                .bounds(left + 104, top + panelHeight() - 56, 98, 20)
+                .bounds(x + width + 6, y, width, 18)
                 .build());
     }
 
     private void addCareButtons() {
-        int x = panelLeft() + panelWidth() - 108;
-        int y = panelTop() + 49;
+        int buttonWidth = compactWidth() ? 62 : 76;
+        int buttonHeight = compactHeight() ? 16 : 18;
         for (CareAction action : CareAction.values()) {
-            Button button = addRenderableWidget(Button.builder(Component.translatable(action.titleKey()), b -> requestCare(action))
-                    .bounds(x, y, 92, 20)
+            int rowY = careRowY(action);
+            Button button = addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.care.start"),
+                            b -> EarthHumanClient.requestCareAction(action))
+                    .bounds(contentRight() - buttonWidth - 5, rowY + (compactHeight() ? 2 : 5), buttonWidth, buttonHeight)
+                    .tooltip(Tooltip.create(Component.translatable(action.descriptionKey())))
                     .build());
-            button.setTooltip(Tooltip.create(Component.translatable(action.descriptionKey())));
             careButtons.put(action, button);
-            y += 26;
         }
         cancelCareButton = addRenderableWidget(Button.builder(
                         Component.translatable("screen.earth_human.status.care.cancel"),
                         b -> EarthHumanClient.cancelCareAction())
-                .bounds(x, y, 92, 16)
+                .bounds(panelLeft() + panelWidth() - 158, panelTop() + panelHeight() - 27, 80, 18)
                 .build());
         updateCareButtons();
-    }
-
-    private void requestCare(CareAction action) {
-        EarthHumanClient.requestCareAction(action);
     }
 
     private void updateCareButtons() {
@@ -177,170 +192,270 @@ public class EarthHumanStatusScreen extends Screen {
         }
     }
 
-    private void addSettingsButtons() {
+    private void addSettingsWidgets() {
         int x = contentLeft();
-        int y = panelTop() + 52;
-        int gap = 6;
-        int buttonW = Math.max(80, (contentWidth() - gap) / 2);
+        int y = contentTop() + 19;
+        int columnGap = 10;
+        int columnWidth = (contentWidth() - columnGap) / 2;
 
-        addRenderableWidget(Button.builder(vitalsLabel(), b -> {
-            HumanHudClientConfig.setShowVitalsHud(!HumanHudClientConfig.showVitalsHud());
-            b.setMessage(vitalsLabel());
-        }).bounds(x, y, buttonW, 20).build());
-        addRenderableWidget(Button.builder(bodyHudLabel(), b -> {
-            HumanHudClientConfig.setShowBodyHud(!HumanHudClientConfig.showBodyHud());
-            b.setMessage(bodyHudLabel());
-        }).bounds(x + buttonW + gap, y, buttonW, 20).build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("screen.earth_human.settings.vitals"), font)
+                .pos(x, y)
+                .maxWidth(columnWidth)
+                .selected(HumanHudClientConfig.showVitalsHud())
+                .onValueChange((box, value) -> HumanHudClientConfig.setShowVitalsHud(value))
+                .tooltip(Tooltip.create(Component.translatable("screen.earth_human.settings.tooltip.vitals")))
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("screen.earth_human.settings.body"), font)
+                .pos(x + columnWidth + columnGap, y)
+                .maxWidth(columnWidth)
+                .selected(HumanHudClientConfig.showBodyHud())
+                .onValueChange((box, value) -> HumanHudClientConfig.setShowBodyHud(value))
+                .tooltip(Tooltip.create(Component.translatable("screen.earth_human.settings.tooltip.enabled")))
+                .build());
+        addRenderableWidget(Checkbox.builder(Component.translatable("screen.earth_human.settings.numbers"), font)
+                .pos(x, y + 25)
+                .maxWidth(columnWidth)
+                .selected(HumanHudClientConfig.showNumericValues())
+                .onValueChange((box, value) -> HumanHudClientConfig.setShowNumericValues(value))
+                .tooltip(Tooltip.create(Component.translatable("screen.earth_human.settings.tooltip.numbers")))
+                .build());
 
-        addRenderableWidget(Button.builder(numbersLabel(), b -> {
-            HumanHudClientConfig.setShowNumericValues(!HumanHudClientConfig.showNumericValues());
-            b.setMessage(numbersLabel());
-        }).bounds(x, y + 28, buttonW, 20).build());
-        addRenderableWidget(Button.builder(themeLabel(), b -> {
-            HumanHudClientConfig.cycleTheme();
-            b.setMessage(themeLabel());
-        }).bounds(x + buttonW + gap, y + 28, buttonW, 20).build());
+        addRenderableWidget(CycleButton.builder(
+                        theme -> Component.translatable(theme.translationKey()),
+                        HumanHudClientConfig.hudTheme())
+                .withValues(List.of(HumanHudClientConfig.HudTheme.values()))
+                .withTooltip(theme -> Tooltip.create(Component.translatable("screen.earth_human.settings.tooltip.theme")))
+                .create(x + columnWidth + columnGap, y + 22, columnWidth, 20,
+                        Component.translatable("screen.earth_human.settings.theme.label"),
+                        (button, value) -> HumanHudClientConfig.setHudTheme(value)));
 
-        addRenderableWidget(Button.builder(cornerLabel(), b -> {
-            HumanHudClientConfig.cycleCorner();
-            b.setMessage(cornerLabel());
-        }).bounds(x, y + 56, buttonW, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.settings.size.minus"), b -> HumanHudClientConfig.changeScale(-0.1D))
-                .bounds(x + buttonW + gap, y + 56, (buttonW - gap) / 2, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.settings.size.plus"), b -> HumanHudClientConfig.changeScale(0.1D))
-                .bounds(x + buttonW + gap + (buttonW + gap) / 2, y + 56, (buttonW - gap) / 2, 20).build());
+        addRenderableWidget(CycleButton.builder(
+                        corner -> Component.translatable(corner.translationKey()),
+                        HumanHudClientConfig.bodyHudCorner())
+                .withValues(List.of(HumanHudClientConfig.HudCorner.values()))
+                .withTooltip(corner -> Tooltip.create(Component.translatable("screen.earth_human.settings.tooltip.corner")))
+                .create(x, y + 51, contentWidth(), 20,
+                        Component.translatable("screen.earth_human.settings.corner.label"),
+                        (button, value) -> HumanHudClientConfig.setBodyHudCorner(value)));
 
-        addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.settings.opacity.minus"), b -> HumanHudClientConfig.changeOpacity(-0.1D))
-                .bounds(x, y + 84, buttonW, 20).build());
-        addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.settings.opacity.plus"), b -> HumanHudClientConfig.changeOpacity(0.1D))
-                .bounds(x + buttonW + gap, y + 84, buttonW, 20).build());
+        addRenderableWidget(new ConfigSlider(x, y + 78, columnWidth, "screen.earth_human.settings.size.slider",
+                HumanHudClientConfig.bodyHudScale(), 0.6D, 2.0D, HumanHudClientConfig::setBodyHudScale));
+        addRenderableWidget(new ConfigSlider(x + columnWidth + columnGap, y + 78, columnWidth,
+                "screen.earth_human.settings.opacity.slider", HumanHudClientConfig.bodyHudOpacity(),
+                0.1D, 1.0D, HumanHudClientConfig::setBodyHudOpacity));
     }
 
-    private void drawOverview(GuiGraphicsExtractor g, int left, int top, int w, int h) {
+    private void drawOverview(GuiGraphicsExtractor g) {
         int x = contentLeft();
-        int y = top + 49;
+        int y = contentTop();
         HumanStatus status = EarthHumanClient.syncedStatus();
         HumanBodySyncPayload body = EarthHumanClient.syncedBody();
-        int bodyW = 64;
-        int meterW = Math.max(110, contentWidth() - bodyW - 16);
-        boolean compactHeight = h < 245;
-        int firstMeterY = y + (compactHeight ? 16 : 18);
-        int meterStep = compactHeight ? 25 : 29;
+        int bodyPlateWidth = compactWidth() ? 58 : 78;
+        int meterWidth = contentWidth() - bodyPlateWidth - 12;
+        int meterStep = compactHeight() ? 23 : 27;
 
-        g.text(font, Component.translatable("screen.earth_human.status.overview.heading"), x, y, INK, false);
-        drawMeter(g, x, firstMeterY, meterW, "screen.earth_human.status.hydration", status.hydration / 100.0D,
-                Math.round(status.hydration) + "%", vitalColor(status.hydration / 100.0D, false));
-        drawMeter(g, x, firstMeterY + meterStep, meterW, "screen.earth_human.status.temperature", temperatureRatio(status.bodyTemperature),
-                String.format(java.util.Locale.ROOT, "%.1f C", status.bodyTemperature), temperatureColor(status.bodyTemperature));
-        drawMeter(g, x, firstMeterY + meterStep * 2, meterW, "screen.earth_human.status.fatigue", status.fatigue / 100.0D,
-                Math.round(status.fatigue) + "%", vitalColor(status.fatigue / 100.0D, true));
+        drawSectionHeading(g, x, y, "screen.earth_human.status.overview.heading");
+        drawMeter(g, x, y + 17, meterWidth, "screen.earth_human.status.hydration",
+                status.hydration / 100.0D, Math.round(status.hydration) + "%",
+                vitalColor(status.hydration / 100.0D, false));
+        drawMeter(g, x, y + 17 + meterStep, meterWidth, "screen.earth_human.status.temperature",
+                temperatureRatio(status.bodyTemperature), String.format(Locale.ROOT, "%.1f C", status.bodyTemperature),
+                temperatureColor(status.bodyTemperature));
+        drawMeter(g, x, y + 17 + meterStep * 2, meterWidth, "screen.earth_human.status.fatigue",
+                status.fatigue / 100.0D, Math.round(status.fatigue) + "%",
+                vitalColor(status.fatigue / 100.0D, true));
 
-        int activityY = firstMeterY + meterStep * 3 - 2;
-        g.text(font, fit(Component.translatable(
-                "screen.earth_human.status.activity_line",
-                Component.translatable(status.currentActivity.translationKey()),
-                Math.round(status.exertionLoad)), contentWidth()), x, activityY, INK, false);
+        int bodyX = x + meterWidth + 12;
+        int plateHeight = compactHeight() ? 84 : 96;
+        g.fill(bodyX, y + 15, bodyX + bodyPlateWidth, y + 15 + plateHeight, 0xB0141A1C);
+        g.outline(bodyX, y + 15, bodyPlateWidth, plateHeight, ACCENT_DARK);
+        g.centeredText(font, Component.translatable("screen.earth_human.status.body_summary"),
+                bodyX + bodyPlateWidth / 2, y + 20, MUTED);
+        double scale = compactHeight() ? 0.82D : 0.98D;
+        BodyHudRenderer.draw(g, body, bodyX + (bodyPlateWidth - BodyHudRenderer.width(scale)) / 2,
+                y + 33, scale, 0.95D);
 
-        int bodyX = x + meterW + 17;
-        g.text(font, Component.translatable("screen.earth_human.status.body_summary"), bodyX - 4, y, MUTED, false);
-        BodyHudRenderer.draw(g, body, bodyX + 7, y + 17, 1.05D, 0.9D);
+        int activityY = y + 18 + meterStep * 3;
+        g.text(font, fit(Component.translatable("screen.earth_human.status.activity_line",
+                Component.translatable(status.currentActivity.translationKey()), Math.round(status.exertionLoad)), meterWidth),
+                x, activityY, MEDICAL_WHITE, false);
+        drawThinBar(g, x, activityY + 12, meterWidth, status.exertionLoad / 100.0D,
+                vitalColor(status.exertionLoad / 100.0D, true));
 
-        if (compactHeight) {
-            int hintY = top + h - 77;
-            g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x, hintY, ACCENT, false);
-            g.text(font, fit(recommendation(status, body), contentWidth()), x, hintY + 11, INK, false);
-        } else {
-            int hintY = top + h - 91;
-            g.fill(x, hintY, left + w - 14, hintY + 31, PANEL_ALT);
-            g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 7, hintY + 5, ACCENT, false);
-            g.text(font, fit(recommendation(status, body), contentWidth() - 14), x + 7, hintY + 17, INK, false);
-        }
+        int noteY = compactHeight()
+                ? panelTop() + panelHeight() - 60
+                : Math.max(activityY + 23, panelTop() + panelHeight() - 62);
+        drawRecommendation(g, x, noteY, contentWidth(), recommendation(status, body));
     }
 
-    private void drawBody(GuiGraphicsExtractor g, int left, int top, int w, int h) {
+    private void drawBody(GuiGraphicsExtractor g) {
         int x = contentLeft();
-        int y = top + 49;
+        int y = contentTop();
         HumanBodySyncPayload body = EarthHumanClient.syncedBody();
-        g.text(font, fit(Component.translatable("screen.earth_human.status.body.heading"), contentWidth()), x, y, INK, false);
-        boolean compact = contentWidth() < 250;
-        double bodyScale = compact ? 1.45D : 2.15D;
-        BodyHudRenderer.draw(g, body, x + (compact ? 6 : 18), y + 24, bodyScale, 1.0D);
+        drawSectionHeading(g, x, y, "screen.earth_human.status.body.heading");
 
-        int barsX = x + (compact ? 64 : 104);
-        int barsW = Math.max(72, left + w - 16 - barsX);
-        int rowY = y + 15;
+        int figureWidth = compactWidth() ? 74 : 104;
+        int figureTop = y + (compactHeight() ? 20 : 16);
+        int figureHeight = compactHeight() ? 114 : panelHeight() - 106;
+        g.fill(x, figureTop, x + figureWidth, figureTop + figureHeight, 0xB0141A1C);
+        g.outline(x, figureTop, figureWidth, figureHeight, ACCENT_DARK);
+        drawDiagnosticCorners(g, x, figureTop, figureWidth, figureHeight);
+        double bodyScale = compactHeight() ? 1.35D : 1.75D;
+        BodyHudRenderer.draw(g, body, x + (figureWidth - BodyHudRenderer.width(bodyScale)) / 2,
+                y + (compactHeight() ? 26 : 24), bodyScale, 1.0D);
+
+        int barsX = x + figureWidth + 12;
+        int barsWidth = contentRight() - barsX;
+        int rowY = y + (compactHeight() ? 18 : 15);
+        int rowStep = compactHeight() ? 18 : Math.max(21, (figureHeight - 1) / BodyPart.values().length);
         for (BodyPart part : BodyPart.values()) {
             double ratio = body.value(part);
-            drawMeter(g, barsX, rowY, barsW, part.translationKey(), ratio,
+            drawMeter(g, barsX, rowY, barsWidth, part.translationKey(), ratio,
                     Math.round(ratio * 100.0D) + "%", bodyColor(ratio));
-            rowY += 22;
+            rowY += rowStep;
         }
     }
 
-    private void drawCare(GuiGraphicsExtractor g, int left, int top, int w, int h) {
+    private void drawCare(GuiGraphicsExtractor g) {
         int x = contentLeft();
-        int y = top + 49;
+        int y = contentTop();
         HumanCareStatePayload careState = EarthHumanClient.syncedCareState();
-        g.text(font, fit(Component.translatable("screen.earth_human.status.care.heading"), contentWidth()), x, y, INK, false);
+        drawSectionHeading(g, x, y, "screen.earth_human.status.care.heading");
+
         if (careState.active()) {
             CareAction activeAction = CareAction.byId(careState.actionId());
             Component actionName = activeAction == null
                     ? Component.translatable("screen.earth_human.status.care.running")
                     : Component.translatable(activeAction.titleKey());
-            g.text(font, fit(Component.translatable(
-                    "screen.earth_human.status.care.active",
-                    actionName,
-                    String.format(java.util.Locale.ROOT, "%.1f", careState.remainingTicks() / 20.0D)), contentWidth()),
-                    x, y + 11, ACCENT, false);
+            g.text(font, fit(Component.translatable("screen.earth_human.status.care.active", actionName,
+                            String.format(Locale.ROOT, "%.1f", careState.remainingTicks() / 20.0D)), contentWidth()),
+                    x, y + 17, ACCENT, false);
         } else if (!careState.feedbackKey().isEmpty()) {
-            g.text(font, fit(Component.translatable(careState.feedbackKey()), contentWidth()), x, y + 11, INK, false);
+            g.text(font, fit(Component.translatable(careState.feedbackKey()), contentWidth()),
+                    x, y + 17, MEDICAL_WHITE, false);
+        } else if (!compactHeight()) {
+            g.text(font, Component.translatable("screen.earth_human.status.care.idle"), x, y + 17, MUTED, false);
         }
-        int rowY = y + 23;
+
+        int buttonWidth = compactWidth() ? 62 : 76;
         for (CareAction action : CareAction.values()) {
-            ItemStack careItem = findCareItem(action);
-            boolean hasItem = !careItem.isEmpty();
-            int color = hasItem ? ACCENT : MUTED;
-            g.fill(x, rowY - 4, left + w - 116, rowY + 18, PANEL_ALT);
-            g.text(font, Component.translatable(action.titleKey()), x + 6, rowY, color, false);
-            Component availability = hasItem
-                    ? Component.translatable("screen.earth_human.status.care.ready", careItem.getHoverName())
-                    : Component.translatable("screen.earth_human.status.care.missing");
-            if (careState.active() && action.id.equals(careState.actionId())) {
-                availability = Component.translatable(
-                        "screen.earth_human.status.care.progress",
-                        Math.round(100.0D * (1.0D - careState.remainingTicks() / (double) Math.max(1, careState.totalTicks()))));
+            int rowY = careRowY(action);
+            int rowHeight = careRowStep() - 2;
+            int rowRight = contentRight() - buttonWidth - 9;
+            ItemStack inventoryItem = findCareItem(action);
+            ItemStack displayItem = inventoryItem.isEmpty() ? representativeCareItem(action) : inventoryItem;
+            boolean hasItem = !inventoryItem.isEmpty();
+            boolean isActive = careState.active() && action.id.equals(careState.actionId());
+
+            g.fill(x, rowY, contentRight(), rowY + rowHeight, isActive ? 0xD02A3B37 : 0xB01B2426);
+            g.fill(x, rowY, x + 3, rowY + rowHeight, isActive ? ACCENT : (hasItem ? ACCENT_DARK : 0xFF555D5C));
+            int slotY = rowY + Math.max(1, (rowHeight - 18) / 2);
+            g.fill(x + 6, slotY, x + 24, slotY + 18, 0xFF111719);
+            g.outline(x + 6, slotY, 18, 18, hasItem ? EDGE : 0xFF4B5352);
+            g.item(displayItem, x + 7, slotY + 1);
+            if (!hasItem) {
+                g.fill(x + 7, slotY + 1, x + 23, slotY + 17, 0x78000000);
             }
-            g.text(font, fit(availability, Math.max(40, left + w - 122 - x)), x + 6, rowY + 10, hasItem ? INK : WARNING, false);
-            rowY += 26;
+
+            int textX = x + 29;
+            g.text(font, fit(Component.translatable(action.titleKey()), Math.max(35, rowRight - textX)),
+                    textX, rowY + 3, hasItem ? MEDICAL_WHITE : MUTED, false);
+            Component detail = hasItem
+                    ? Component.translatable("screen.earth_human.status.care.ready_timed", inventoryItem.getHoverName(),
+                    String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D))
+                    : Component.translatable("screen.earth_human.status.care.missing");
+            g.text(font, fit(detail, Math.max(35, rowRight - textX)), textX, rowY + 13,
+                    hasItem ? ACCENT : WARNING, false);
+
+            if (isActive) {
+                double progress = 1.0D - careState.remainingTicks() / (double) Math.max(1, careState.totalTicks());
+                drawThinBar(g, textX, rowY + rowHeight - 4, Math.max(20, rowRight - textX), progress, ACCENT);
+            }
         }
     }
 
-    private void drawSettings(GuiGraphicsExtractor g, int left, int top, int w, int h) {
+    private void drawSettings(GuiGraphicsExtractor g) {
         int x = contentLeft();
-        g.text(font, fit(Component.translatable("screen.earth_human.status.settings.heading"), contentWidth()), x, top + 43, INK, false);
-        int previewY = top + 162;
-        if (h >= 245) {
-            g.text(font, Component.translatable("screen.earth_human.settings.preview"), x, previewY, MUTED, false);
-            BodyHudRenderer.draw(g, EarthHumanClient.syncedBody(), x + 48, previewY - 8, 0.85D, HumanHudClientConfig.bodyHudOpacity());
+        int y = contentTop();
+        drawSectionHeading(g, x, y, "screen.earth_human.status.settings.heading");
+        if (!compactHeight()) {
+            int previewY = y + 126;
+            g.fill(x, previewY, contentRight(), previewY + 40, 0xB0141A1C);
+            g.outline(x, previewY, contentWidth(), 40, ACCENT_DARK);
+            g.text(font, Component.translatable("screen.earth_human.settings.preview"), x + 7, previewY + 6, MUTED, false);
+            double previewScale = 0.55D;
+            BodyHudRenderer.draw(g, EarthHumanClient.syncedBody(), x + 58, previewY + 3,
+                    previewScale, HumanHudClientConfig.bodyHudOpacity());
             g.text(font, Component.translatable("screen.earth_human.settings.current_values",
-                    Math.round(HumanHudClientConfig.bodyHudScale() * 100.0D),
-                    Math.round(HumanHudClientConfig.bodyHudOpacity() * 100.0D)), x + 92, previewY + 8, INK, false);
-        } else {
-            g.text(font, Component.translatable("screen.earth_human.settings.current_values",
-                    Math.round(HumanHudClientConfig.bodyHudScale() * 100.0D),
-                    Math.round(HumanHudClientConfig.bodyHudOpacity() * 100.0D)), x, previewY, INK, false);
+                            Math.round(HumanHudClientConfig.bodyHudScale() * 100.0D),
+                            Math.round(HumanHudClientConfig.bodyHudOpacity() * 100.0D)),
+                    x + 92, previewY + 7, MEDICAL_WHITE, false);
+            g.text(font, fit(Component.translatable("screen.earth_human.settings.color_hint"), contentWidth() - 99),
+                    x + 92, previewY + 20, MUTED, false);
         }
-        g.text(font, Component.translatable("screen.earth_human.settings.color_hint"), x, top + h - 48, MUTED, false);
+    }
+
+    private void drawSectionHeading(GuiGraphicsExtractor g, int x, int y, String key) {
+        g.fill(x, y + 10, x + 10, y + 12, ACCENT);
+        g.text(font, fit(Component.translatable(key), contentWidth() - 16), x + 15, y + 6, MEDICAL_WHITE, false);
     }
 
     private void drawMeter(GuiGraphicsExtractor g, int x, int y, int width, String labelKey,
                            double ratio, String value, int color) {
         double clamped = Math.max(0.0D, Math.min(1.0D, ratio));
         g.text(font, Component.translatable(labelKey), x, y, MUTED, false);
-        int valueWidth = font.width(value);
-        g.text(font, value, x + width - valueWidth, y, INK, false);
-        g.fill(x, y + 11, x + width, y + 17, 0xFF30393E);
-        g.fill(x + 1, y + 12, x + 1 + (int) Math.round((width - 2) * clamped), y + 16, color);
+        g.text(font, value, x + width - font.width(value), y, MEDICAL_WHITE, false);
+        g.fill(x, y + 11, x + width, y + 18, 0xFF111719);
+        g.outline(x, y + 11, width, 7, 0xFF46514F);
+        int filled = (int) Math.round((width - 2) * clamped);
+        if (filled > 0) {
+            g.fill(x + 1, y + 12, x + 1 + filled, y + 17, color);
+        }
+        for (int marker = 1; marker < 4; marker++) {
+            int markerX = x + width * marker / 4;
+            g.fill(markerX, y + 12, markerX + 1, y + 17, 0x66323B3A);
+        }
+    }
+
+    private void drawThinBar(GuiGraphicsExtractor g, int x, int y, int width, double ratio, int color) {
+        double clamped = Math.max(0.0D, Math.min(1.0D, ratio));
+        g.fill(x, y, x + width, y + 4, 0xFF111719);
+        int filled = (int) Math.round((width - 2) * clamped);
+        if (filled > 0) {
+            g.fill(x + 1, y + 1, x + 1 + filled, y + 3, color);
+        }
+    }
+
+    private void drawRecommendation(GuiGraphicsExtractor g, int x, int y, int width, Component recommendation) {
+        g.fill(x, y, x + width, y + 29, 0xD0212B2C);
+        g.fill(x, y, x + 4, y + 29, ACCENT);
+        g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 9, y + 4, ACCENT, false);
+        g.text(font, fit(recommendation, width - 18), x + 9, y + 16, MEDICAL_WHITE, false);
+    }
+
+    private void drawLedger(GuiGraphicsExtractor g, int left, int top, int right, int bottom) {
+        for (int y = top + 10; y < bottom; y += 12) {
+            g.fill(left, y, right, y + 1, LEDGER);
+        }
+    }
+
+    private void drawMedicalMark(GuiGraphicsExtractor g, int x, int y) {
+        g.fill(x, y, x + 17, y + 17, ACCENT_DARK);
+        g.outline(x, y, 17, 17, ACCENT);
+        g.fill(x + 7, y + 3, x + 10, y + 14, MEDICAL_WHITE);
+        g.fill(x + 3, y + 7, x + 14, y + 10, MEDICAL_WHITE);
+    }
+
+    private void drawDiagnosticCorners(GuiGraphicsExtractor g, int x, int y, int width, int height) {
+        int length = 7;
+        g.fill(x + 3, y + 3, x + 3 + length, y + 4, ACCENT);
+        g.fill(x + 3, y + 3, x + 4, y + 3 + length, ACCENT);
+        g.fill(x + width - 3 - length, y + 3, x + width - 3, y + 4, ACCENT);
+        g.fill(x + width - 4, y + 3, x + width - 3, y + 3 + length, ACCENT);
+        g.fill(x + 3, y + height - 4, x + 3 + length, y + height - 3, ACCENT);
+        g.fill(x + 3, y + height - 3 - length, x + 4, y + height - 3, ACCENT);
+        g.fill(x + width - 3 - length, y + height - 4, x + width - 3, y + height - 3, ACCENT);
+        g.fill(x + width - 4, y + height - 3 - length, x + width - 3, y + height - 3, ACCENT);
     }
 
     private Component recommendation(HumanStatus status, HumanBodySyncPayload body) {
@@ -357,34 +472,6 @@ public class EarthHumanStatusScreen extends Screen {
         return Component.translatable("screen.earth_human.status.recommend.ok");
     }
 
-    private Component vitalsLabel() {
-        return Component.translatable(HumanHudClientConfig.showVitalsHud()
-                ? "screen.earth_human.settings.vitals.on"
-                : "screen.earth_human.settings.vitals.off");
-    }
-
-    private Component bodyHudLabel() {
-        return Component.translatable(HumanHudClientConfig.showBodyHud()
-                ? "screen.earth_human.settings.body.on"
-                : "screen.earth_human.settings.body.off");
-    }
-
-    private Component numbersLabel() {
-        return Component.translatable(HumanHudClientConfig.showNumericValues()
-                ? "screen.earth_human.settings.numbers.on"
-                : "screen.earth_human.settings.numbers.off");
-    }
-
-    private Component themeLabel() {
-        return Component.translatable("screen.earth_human.settings.theme",
-                Component.translatable(HumanHudClientConfig.hudTheme().translationKey()));
-    }
-
-    private Component cornerLabel() {
-        return Component.translatable("screen.earth_human.settings.corner",
-                Component.translatable(HumanHudClientConfig.bodyHudCorner().translationKey()));
-    }
-
     private ItemStack findCareItem(CareAction action) {
         if (Minecraft.getInstance().player == null) {
             return ItemStack.EMPTY;
@@ -398,21 +485,39 @@ public class EarthHumanStatusScreen extends Screen {
         return ItemStack.EMPTY;
     }
 
+    private ItemStack representativeCareItem(CareAction action) {
+        return switch (action) {
+            case HYDRATE -> new ItemStack(EarthHumanItems.FILLED_CANTEEN.get());
+            case BANDAGE -> new ItemStack(EarthHumanItems.STERILE_BANDAGE.get());
+            case FIRST_AID -> new ItemStack(EarthHumanItems.BASIC_FIRST_AID_KIT.get());
+            case WARM -> new ItemStack(EarthHumanItems.HEAT_PACK.get());
+            case COOL -> new ItemStack(EarthHumanItems.COOLING_PACK.get());
+        };
+    }
+
     private Component fit(Component text, int maxWidth) {
         if (font.width(text) <= maxWidth) {
             return text;
         }
         String suffix = "...";
-        int contentWidth = Math.max(1, maxWidth - font.width(suffix));
-        return Component.literal(font.plainSubstrByWidth(text.getString(), contentWidth) + suffix);
+        int allowed = Math.max(1, maxWidth - font.width(suffix));
+        return Component.literal(font.plainSubstrByWidth(text.getString(), allowed) + suffix);
+    }
+
+    private int careRowY(CareAction action) {
+        return contentTop() + (compactHeight() ? 27 : 32) + action.ordinal() * careRowStep();
+    }
+
+    private int careRowStep() {
+        return compactHeight() ? 20 : 29;
     }
 
     private int panelWidth() {
-        return Math.min(440, Math.max(300, width - 12));
+        return Math.min(468, Math.max(310, width - 12));
     }
 
     private int panelHeight() {
-        return Math.min(260, Math.max(224, height - 24));
+        return Math.min(286, Math.max(228, height - 20));
     }
 
     private int panelLeft() {
@@ -424,15 +529,27 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private int contentLeft() {
-        return panelLeft() + navWidth() + 26;
+        return panelLeft() + 16;
+    }
+
+    private int contentRight() {
+        return panelLeft() + panelWidth() - 14;
+    }
+
+    private int contentTop() {
+        return panelTop() + 65;
     }
 
     private int contentWidth() {
-        return panelWidth() - navWidth() - 40;
+        return contentRight() - contentLeft();
     }
 
-    private int navWidth() {
-        return panelWidth() < 380 ? 68 : 82;
+    private boolean compactWidth() {
+        return panelWidth() < 390;
+    }
+
+    private boolean compactHeight() {
+        return panelHeight() < 260;
     }
 
     private static double temperatureRatio(double temperature) {
@@ -440,9 +557,9 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private static int temperatureColor(double temperature) {
-        if (temperature < 35.5D) return 0xFF5DADE2;
-        if (temperature > 38.2D) return 0xFFFF9F43;
-        return 0xFF72D6A0;
+        if (temperature < 35.5D) return 0xFF5C91B7;
+        if (temperature > 38.2D) return 0xFFD8844F;
+        return ACCENT;
     }
 
     private static int vitalColor(double ratio, boolean reverse) {
@@ -453,9 +570,43 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private static int bodyColor(double ratio) {
-        if (ratio <= 0.01D) return 0xFF111111;
+        if (ratio <= 0.01D) return 0xFF080A0A;
         if (ratio < 0.30D) return DANGER;
         if (ratio < 0.65D) return WARNING;
-        return 0xFF72D6A0;
+        return ACCENT;
+    }
+
+    private static final class ConfigSlider extends AbstractSliderButton {
+        private final String messageKey;
+        private final double min;
+        private final double max;
+        private final DoubleConsumer setter;
+
+        private ConfigSlider(int x, int y, int width, String messageKey, double current,
+                             double min, double max, DoubleConsumer setter) {
+            super(x, y, width, 20, sliderMessage(messageKey, current), (current - min) / (max - min));
+            this.messageKey = messageKey;
+            this.min = min;
+            this.max = max;
+            this.setter = setter;
+        }
+
+        @Override
+        protected void updateMessage() {
+            setMessage(sliderMessage(messageKey, currentValue()));
+        }
+
+        @Override
+        protected void applyValue() {
+            setter.accept(currentValue());
+        }
+
+        private double currentValue() {
+            return min + value * (max - min);
+        }
+
+        private static Component sliderMessage(String key, double value) {
+            return Component.translatable(key, Math.round(value * 100.0D));
+        }
     }
 }
