@@ -14,6 +14,7 @@ public final class EarthHumanConfig {
     private static final ModConfigSpec.BooleanValue ENABLE_TEMPERATURE;
     private static final ModConfigSpec.BooleanValue ENABLE_FATIGUE;
     private static final ModConfigSpec.BooleanValue ENABLE_TRAINING;
+    private static final ModConfigSpec.BooleanValue ENABLE_AIR_QUALITY;
 
     private static final ModConfigSpec.DoubleValue HYDRATION_LOSS_MULTIPLIER;
     private static final ModConfigSpec.DoubleValue FATIGUE_GAIN_MULTIPLIER;
@@ -23,6 +24,8 @@ public final class EarthHumanConfig {
     private static final ModConfigSpec.DoubleValue BODY_SPREAD_MULTIPLIER;
     private static final ModConfigSpec.DoubleValue HEALING_MULTIPLIER;
     private static final ModConfigSpec.DoubleValue TRAINING_GAIN_MULTIPLIER;
+    private static final ModConfigSpec.DoubleValue AIR_QUALITY_LOSS_MULTIPLIER;
+    private static final ModConfigSpec.DoubleValue AIR_QUALITY_RECOVERY_MULTIPLIER;
 
     private static final ModConfigSpec.DoubleValue RESPAWN_HEAD_MINIMUM_RATIO;
     private static final ModConfigSpec.DoubleValue RESPAWN_OTHER_MINIMUM_RATIO;
@@ -49,6 +52,7 @@ public final class EarthHumanConfig {
         ENABLE_TEMPERATURE = builder.define("temperature", true);
         ENABLE_FATIGUE = builder.define("fatigue", true);
         ENABLE_TRAINING = builder.define("training", true);
+        ENABLE_AIR_QUALITY = builder.define("air_quality", true);
         builder.pop();
 
         builder.comment("Fine tuning. Preset multipliers are applied before these values.").push("multipliers");
@@ -60,6 +64,8 @@ public final class EarthHumanConfig {
         BODY_SPREAD_MULTIPLIER = range(builder, "body_spread", 1.0D);
         HEALING_MULTIPLIER = range(builder, "healing", 1.0D);
         TRAINING_GAIN_MULTIPLIER = range(builder, "training_gain", 1.0D);
+        AIR_QUALITY_LOSS_MULTIPLIER = range(builder, "air_quality_loss", 1.0D);
+        AIR_QUALITY_RECOVERY_MULTIPLIER = range(builder, "air_quality_recovery", 1.0D);
         builder.pop();
 
         builder.comment("Minimum health restored on death without wiping long-term injuries.").push("respawn");
@@ -107,6 +113,10 @@ public final class EarthHumanConfig {
         return ENABLE_TRAINING.get();
     }
 
+    public static boolean airQualityEnabled() {
+        return ENABLE_AIR_QUALITY.get();
+    }
+
     public static double hydrationLossMultiplier() {
         return preset().hydrationLoss * HYDRATION_LOSS_MULTIPLIER.get();
     }
@@ -137,6 +147,14 @@ public final class EarthHumanConfig {
 
     public static double trainingGainMultiplier() {
         return preset().trainingGain * TRAINING_GAIN_MULTIPLIER.get();
+    }
+
+    public static double airQualityLossMultiplier() {
+        return AIR_QUALITY_LOSS_MULTIPLIER.get();
+    }
+
+    public static double airQualityRecoveryMultiplier() {
+        return AIR_QUALITY_RECOVERY_MULTIPLIER.get();
     }
 
     public static double respawnHeadMinimumRatio() {

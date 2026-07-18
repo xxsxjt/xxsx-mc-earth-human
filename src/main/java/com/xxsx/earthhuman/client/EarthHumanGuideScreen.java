@@ -11,7 +11,7 @@ import java.util.List;
 
 /** A short, discoverable explanation layer kept separate from the live status screen. */
 public final class EarthHumanGuideScreen extends Screen {
-    private static final int PAGE_COUNT = 5;
+    private static final int PAGE_COUNT = 6;
     private static final int BACKDROP = 0xC0101314;
     private static final int FRAME = 0xFF111719;
     private static final int SURFACE = 0xFF1B2325;
@@ -117,6 +117,7 @@ public final class EarthHumanGuideScreen extends Screen {
         VITALS("screen.earth_human.guide.vitals.title", "screen.earth_human.guide.vitals.body"),
         CARE("screen.earth_human.guide.care.title", "screen.earth_human.guide.care.body"),
         ACTIVITY("screen.earth_human.guide.activity.title", "screen.earth_human.guide.activity.body"),
+        ENVIRONMENT("screen.earth_human.guide.environment.title", "screen.earth_human.guide.environment.body"),
         COMPATIBILITY("screen.earth_human.guide.compatibility.title", "screen.earth_human.guide.compatibility.body");
 
         private final String titleKey;

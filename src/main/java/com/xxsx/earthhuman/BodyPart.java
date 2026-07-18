@@ -5,10 +5,16 @@ import java.util.Locale;
 public enum BodyPart {
     HEAD("head", 5.0D),
     TORSO("torso", 7.0D),
-    LEFT_ARM("left_arm", 2.0D),
-    RIGHT_ARM("right_arm", 2.0D),
-    LEFT_LEG("left_leg", 2.0D),
-    RIGHT_LEG("right_leg", 2.0D);
+    LIMBS("limbs", 8.0D);
+
+    /**
+     * Source-compatible aliases for integrations written against the early six-region beta.
+     * They intentionally resolve to the single coarse limbs region.
+     */
+    @Deprecated public static final BodyPart LEFT_ARM = LIMBS;
+    @Deprecated public static final BodyPart RIGHT_ARM = LIMBS;
+    @Deprecated public static final BodyPart LEFT_LEG = LIMBS;
+    @Deprecated public static final BodyPart RIGHT_LEG = LIMBS;
 
     public final String id;
     public final double maxHealth;
@@ -23,19 +29,28 @@ public enum BodyPart {
     }
 
     public boolean isLimb() {
-        return this == LEFT_ARM || this == RIGHT_ARM || this == LEFT_LEG || this == RIGHT_LEG;
+        return this == LIMBS;
     }
 
     public boolean isLeg() {
-        return this == LEFT_LEG || this == RIGHT_LEG;
+        return this == LIMBS;
     }
 
     public boolean isArm() {
-        return this == LEFT_ARM || this == RIGHT_ARM;
+        return this == LIMBS;
     }
 
     public static BodyPart byId(String value) {
+        if (value == null) {
+            return null;
+        }
         String normalized = value.toLowerCase(Locale.ROOT);
+        if (normalized.equals("limb") || normalized.equals("limbs")
+                || normalized.equals("arms") || normalized.equals("legs")
+                || normalized.equals("left_arm") || normalized.equals("right_arm")
+                || normalized.equals("left_leg") || normalized.equals("right_leg")) {
+            return LIMBS;
+        }
         for (BodyPart part : values()) {
             if (part.id.equals(normalized) || part.name().toLowerCase(Locale.ROOT).equals(normalized)) {
                 return part;

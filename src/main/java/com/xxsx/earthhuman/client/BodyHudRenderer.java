@@ -19,6 +19,22 @@ public final class BodyHudRenderer {
         return Math.max(1, scaled(BASE_HEIGHT, scale));
     }
 
+    public static Placement placement(int guiWidth, int guiHeight) {
+        double scale = HumanHudClientConfig.bodyHudScale();
+        int width = width(scale);
+        int height = height(scale);
+        int margin = 6;
+        int x = switch (HumanHudClientConfig.bodyHudCorner()) {
+            case BOTTOM_LEFT, TOP_LEFT -> margin;
+            case BOTTOM_RIGHT, TOP_RIGHT -> guiWidth - width - margin;
+        };
+        int y = switch (HumanHudClientConfig.bodyHudCorner()) {
+            case TOP_LEFT, TOP_RIGHT -> margin;
+            case BOTTOM_LEFT, BOTTOM_RIGHT -> guiHeight - height - margin;
+        };
+        return new Placement(x, y, width, height);
+    }
+
     public static void draw(GuiGraphicsExtractor g, HumanBodySyncPayload body, int x, int y, double scale, double opacity) {
         int w = width(scale);
         int h = height(scale);
@@ -31,10 +47,11 @@ public final class BodyHudRenderer {
         drawSegment(g, x, y, scale, opacity, body.value(BodyPart.HEAD), 13, 2, 12, 11);
         drawSegment(g, x, y, scale, opacity, body.value(BodyPart.TORSO), 10, 15, 18, 24);
         // Front-facing silhouette: the player's left is on the viewer's right.
-        drawSegment(g, x, y, scale, opacity, body.value(BodyPart.RIGHT_ARM), 4, 16, 6, 28);
-        drawSegment(g, x, y, scale, opacity, body.value(BodyPart.LEFT_ARM), 28, 16, 6, 28);
-        drawSegment(g, x, y, scale, opacity, body.value(BodyPart.RIGHT_LEG), 11, 41, 7, 18);
-        drawSegment(g, x, y, scale, opacity, body.value(BodyPart.LEFT_LEG), 20, 41, 7, 18);
+        double limbIntegrity = body.value(BodyPart.LIMBS);
+        drawSegment(g, x, y, scale, opacity, limbIntegrity, 4, 16, 6, 28);
+        drawSegment(g, x, y, scale, opacity, limbIntegrity, 28, 16, 6, 28);
+        drawSegment(g, x, y, scale, opacity, limbIntegrity, 11, 41, 7, 18);
+        drawSegment(g, x, y, scale, opacity, limbIntegrity, 20, 41, 7, 18);
     }
 
     private static void drawSegment(GuiGraphicsExtractor g, int originX, int originY, double scale, double opacity,
@@ -96,5 +113,12 @@ public final class BodyHudRenderer {
 
     private static int scaled(int value, double scale) {
         return (int) Math.round(value * Math.max(0.1D, scale));
+    }
+
+    public record Placement(int x, int y, int width, int height) {
+        public boolean contains(double mouseX, double mouseY) {
+            return mouseX >= x - 2 && mouseX < x + width + 2
+                    && mouseY >= y - 2 && mouseY < y + height + 2;
+        }
     }
 }

@@ -1,7 +1,7 @@
 # 地球：人类兼容接口
 
 目标版本：Minecraft 26.2 / NeoForge 26.2.0.7-beta
-当前实现：v0.1.16
+当前实现：v0.1.18
 
 ## Java API v1
 
@@ -10,13 +10,19 @@
 - `apiVersion()`：当前返回 `1`。
 - `snapshot(ServerPlayer)`：读取服务端权威的人体状态摘要。
 - `recover(ServerPlayer, fatigueReduction, bodyHealPerPart, bodyPartIds...)`：按当前身体模型、治疗倍率和同步流程执行恢复。
+- `applyActivity(ServerPlayer, activityId, distanceBlocks, loadGain, bodyPartIds...)`：声明自定义活动，交给服务端累加连续负荷、疲劳和训练。
+- `airQuality(ServerPlayer)`：读取当前空气质量百分比。
+- `detailedSnapshot(ServerPlayer)`：读取包含 `head`、`torso`、`limbs` 三类的详细快照。
 
 API 缺失或版本不匹配时，调用方应安全关闭联动，不能回退为写私有 NBT。
+
+正式身体 ID 只有：`head`、`torso`、`limbs`。早期测试版的 `left_arm`、`right_arm`、`left_leg`、`right_leg`、`arms` 和 `legs` 会兼容解析为 `limbs`；调用方应优先使用新 ID。
 
 ## 设计边界
 
 - 原版生命、最大生命、护甲、伤害修正、治疗和复活继续作为 Minecraft 生态兼容入口。
-- 身体部位是附加状态层。其他 mod 增加 `MAX_HEALTH` 时，各部位容量按比例扩展。
+- 身体部位是附加状态层，正式模型只有 `head`、`torso`、`limbs` 三类。其他 mod 增加 `MAX_HEALTH` 时，各类容量按比例扩展。
+- 为兼容早期测试版，`left_arm`、`right_arm`、`left_leg`、`right_leg`、`arms` 和 `legs` 会解析为 `limbs`；旧存档迁移时四条旧肢体按完整度合并。
 - 快捷护理按钮只发送动作请求；物品查找、动作计时、效果应用和物品消耗全部由服务端完成。
 - 护理界面显示服务端同步进度并支持取消；动作完成时会验证最初选中的物品 ID 和组件，不能用另一个同标签物品静默替换。
 - 没有加入兼容标签的第三方物品不会被自动使用，避免误吃、误耗或把普通物品当药品。
@@ -71,7 +77,7 @@ data/earth_human/tags/damage_type/head_priority.json
 - 当前识别 `WALK_ONE_CM`、`CROUCH_ONE_CM`、`SPRINT_ONE_CM`、水中移动、`CLIMB_ONE_CM`、各原版载具距离、`AVIATE_ONE_CM` 和 `FLY_ONE_CM`。
 - 步行、疾跑、游泳、攀爬、载具、鞘翅和普通飞行分别使用不同疲劳、水分、训练和连续负荷权重。
 - 正常维护原版移动统计的其他 mod 会自动接入；完全自定义且不更新原版统计的移动方式当前不会被凭空猜测，后续可通过公开活动 API 声明。
-- 载具移动默认只产生极低躯干/腿部负荷，静止乘坐时会缓慢恢复连续负荷，避免把高速载具误判成人体疾跑。
+- 载具移动默认只产生极低躯干/四肢负荷，静止乘坐时会缓慢恢复连续负荷，避免把高速载具误判成人体疾跑。
 
 ## 护理物品标签
 

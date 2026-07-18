@@ -9,7 +9,7 @@ public final class HumanNetwork {
     }
 
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        event.registrar("0.1.16")
+        event.registrar("0.1.18")
                 .playToClient(HumanStatusSyncPayload.TYPE, HumanStatusSyncPayload.CODEC)
                 .playToClient(HumanBodySyncPayload.TYPE, HumanBodySyncPayload.CODEC)
                 .playToClient(HumanOpenSettingsPayload.TYPE, HumanOpenSettingsPayload.CODEC)

@@ -19,7 +19,7 @@ public final class HumanBodyStatus {
     private static final String LAST_WARN_TIME = PREFIX + "last_warning_game_time";
     private static final String LAST_USE_SPREAD_TIME = PREFIX + "last_use_spread_game_time";
     private static final String LAST_VANILLA_MAX_HEALTH = PREFIX + "last_vanilla_max_health";
-    private static final int CURRENT_INIT_MODEL = 4;
+    private static final int CURRENT_INIT_MODEL = 5;
     private static final double BASE_VANILLA_HEALTH = 20.0D;
     private static final net.minecraft.resources.Identifier HEAD_HEALTH_LIMIT_ID =
             EarthHuman.id("head_health_limit");
@@ -47,7 +47,7 @@ public final class HumanBodyStatus {
         for (BodyPart part : BodyPart.values()) {
             status.health[part.ordinal()] = model < CURRENT_INIT_MODEL
                     ? status.migrateHealth(data, part, model)
-                    : HumanStatus.clamp(data.getDoubleOr(healthKey(part), status.maxHealth(part)), 0.0D, status.maxHealth(part));
+                    : HumanStatus.clamp(status.readCurrentHealth(data, part), 0.0D, status.maxHealth(part));
         }
         status.syncCapacityFromVanillaMax(player);
         if (model < CURRENT_INIT_MODEL) {
@@ -109,7 +109,9 @@ public final class HumanBodyStatus {
 
     private double migrateHealth(CompoundTag data, BodyPart part, int oldModel) {
         double oldMax = oldMaxHealth(part, oldModel);
-        double oldValue = data.getDoubleOr(healthKey(part), oldMax);
+        double oldValue = part == BodyPart.LIMBS
+                ? oldStoredLimbHealth(data, oldModel)
+                : data.getDoubleOr(healthKey(part), oldMax);
         return BodyHealthMath.migratePreservingRatio(oldValue, oldMax, maxHealth(part));
     }
 
@@ -118,11 +120,31 @@ public final class HumanBodyStatus {
             return switch (part) {
                 case HEAD -> 10.0D;
                 case TORSO -> 16.0D;
-                case LEFT_ARM, RIGHT_ARM -> 10.0D;
-                case LEFT_LEG, RIGHT_LEG -> 12.0D;
+                case LIMBS -> 44.0D;
             };
         }
-        return maxHealth(part);
+        return part == BodyPart.LIMBS ? 8.0D : part.maxHealth;
+    }
+
+    private double readCurrentHealth(CompoundTag data, BodyPart part) {
+        double fallback = maxHealth(part);
+        if (part != BodyPart.LIMBS) {
+            return data.getDoubleOr(healthKey(part), fallback);
+        }
+        if (data.contains(healthKey(part))) {
+            return data.getDoubleOr(healthKey(part), fallback);
+        }
+        return oldStoredLimbHealth(data, CURRENT_INIT_MODEL);
+    }
+
+    private static double oldStoredLimbHealth(CompoundTag data, int oldModel) {
+        double armMax = oldModel <= 2 ? 10.0D : 2.0D;
+        double legMax = oldModel <= 2 ? 12.0D : 2.0D;
+        double leftArm = data.getDoubleOr(PREFIX + "left_arm.health", armMax);
+        double rightArm = data.getDoubleOr(PREFIX + "right_arm.health", armMax);
+        double leftLeg = data.getDoubleOr(PREFIX + "left_leg.health", legMax);
+        double rightLeg = data.getDoubleOr(PREFIX + "right_leg.health", legMax);
+        return leftArm + rightArm + leftLeg + rightLeg;
     }
 
     public double health(BodyPart part) {
@@ -320,37 +342,18 @@ public final class HumanBodyStatus {
         if (!EarthHumanConfig.bodyEffectsEnabled()) {
             return;
         }
-        int brokenLegs = disabledCount(BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-        int criticalLegs = criticalCount(BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-        int brokenArms = disabledCount(BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
-        int criticalArms = criticalCount(BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
-
-        if (brokenLegs > 0 || criticalLegs > 0) {
-            int amp = brokenLegs >= 2 ? 2 : (brokenLegs == 1 ? 1 : 0);
-            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, amp, true, false, true));
-        }
-        if (brokenArms > 0 || criticalArms > 0) {
-            int armLayers = Math.min(2, brokenArms + criticalArms);
-            int amplifier = Math.max(0, armLayers - 1);
-            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 120, amplifier, true, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, amplifier, true, false, true));
+        double limbRatio = percent(BodyPart.LIMBS);
+        if (limbRatio <= 0.01D) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 1, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 120, 1, true, false, true));
+        } else if (limbRatio < 0.30D) {
+            player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 0, true, false, true));
+            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 120, 0, true, false, true));
         }
         if (health(BodyPart.TORSO) <= 0.01D || percent(BodyPart.TORSO) < 0.25D) {
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, health(BodyPart.TORSO) <= 0.01D ? 1 : 0, true, false, true));
             player.causeFoodExhaustion(0.05F);
         }
-    }
-
-    private int disabledCount(BodyPart first, BodyPart second) {
-        return (health(first) <= 0.01D ? 1 : 0) + (health(second) <= 0.01D ? 1 : 0);
-    }
-
-    private int criticalCount(BodyPart first, BodyPart second) {
-        return (isCriticalButActive(first) ? 1 : 0) + (isCriticalButActive(second) ? 1 : 0);
-    }
-
-    private boolean isCriticalButActive(BodyPart part) {
-        return health(part) > 0.01D && percent(part) < 0.30D;
     }
 
     public void warnDirectDamage(ServerPlayer player, BodyPart part, double before) {
@@ -453,8 +456,8 @@ public final class HumanBodyStatus {
     private static BodyPart[] adjacentParts(BodyPart part) {
         return switch (part) {
             case HEAD -> new BodyPart[]{BodyPart.TORSO};
-            case TORSO -> new BodyPart[]{BodyPart.HEAD, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG};
-            case LEFT_ARM, RIGHT_ARM, LEFT_LEG, RIGHT_LEG -> new BodyPart[]{BodyPart.TORSO};
+            case TORSO -> new BodyPart[]{BodyPart.HEAD, BodyPart.LIMBS};
+            case LIMBS -> new BodyPart[]{BodyPart.TORSO};
         };
     }
 
@@ -493,10 +496,7 @@ public final class HumanBodyStatus {
 
     private static final BodyPart[] HEALING_SPREAD_ORDER = {
             BodyPart.TORSO,
-            BodyPart.LEFT_ARM,
-            BodyPart.RIGHT_ARM,
-            BodyPart.LEFT_LEG,
-            BodyPart.RIGHT_LEG
+            BodyPart.LIMBS
     };
 
     @Override

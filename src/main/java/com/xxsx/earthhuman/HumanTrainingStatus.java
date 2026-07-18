@@ -125,13 +125,10 @@ public final class HumanTrainingStatus {
 
     public String summary() {
         return String.format(Locale.ROOT,
-                "head=%d torso=%d arms=%d/%d legs=%d/%d",
+                "head=%d torso=%d limbs=%d",
                 level(BodyPart.HEAD),
                 level(BodyPart.TORSO),
-                level(BodyPart.LEFT_ARM),
-                level(BodyPart.RIGHT_ARM),
-                level(BodyPart.LEFT_LEG),
-                level(BodyPart.RIGHT_LEG));
+                level(BodyPart.LIMBS));
     }
 
     private static String xpKey(BodyPart part) {

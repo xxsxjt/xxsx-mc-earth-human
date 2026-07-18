@@ -1,6 +1,7 @@
 package com.xxsx.earthhuman.api;
 
 import com.xxsx.earthhuman.BodyPart;
+import com.xxsx.earthhuman.HumanActivityType;
 
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -32,5 +33,22 @@ public final class EarthHumanApiContract {
             }
         }
         return List.copyOf(parts);
+    }
+
+    public static ActivityInput normalizeActivity(String activityId, double distanceBlocks, double loadGain) {
+        HumanActivityType activity = HumanActivityType.byId(activityId);
+        if (activity == HumanActivityType.IDLE || activity == HumanActivityType.RESTING
+                || activity == HumanActivityType.SLEEPING) {
+            return null;
+        }
+        if (!Double.isFinite(distanceBlocks) || !Double.isFinite(loadGain)) {
+            return null;
+        }
+        return new ActivityInput(activity,
+                Math.max(0.0D, Math.min(distanceBlocks, 10_000.0D)),
+                Math.max(0.0D, Math.min(loadGain, 50.0D)));
+    }
+
+    public record ActivityInput(HumanActivityType activity, double distanceBlocks, double loadGain) {
     }
 }

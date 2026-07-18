@@ -16,12 +16,12 @@ class BodyHitResolverTest {
     }
 
     @Test
-    void impactHeightAndSideMapToTheSixStoredBodyRegions() {
+    void impactHeightMapsToTheThreeStoredBodyRegions() {
         assertEquals(BodyPart.HEAD, BodyHitResolver.fromImpactPoint(0.9D, 0.0D));
         assertEquals(BodyPart.TORSO, BodyHitResolver.fromImpactPoint(0.60D, 0.0D));
-        assertEquals(BodyPart.RIGHT_ARM, BodyHitResolver.fromImpactPoint(0.60D, 0.40D));
-        assertEquals(BodyPart.LEFT_ARM, BodyHitResolver.fromImpactPoint(0.60D, -0.40D));
-        assertEquals(BodyPart.RIGHT_LEG, BodyHitResolver.fromImpactPoint(0.20D, 0.40D));
-        assertEquals(BodyPart.LEFT_LEG, BodyHitResolver.fromImpactPoint(0.20D, -0.40D));
+        assertEquals(BodyPart.LIMBS, BodyHitResolver.fromImpactPoint(0.60D, 0.40D));
+        assertEquals(BodyPart.LIMBS, BodyHitResolver.fromImpactPoint(0.60D, -0.40D));
+        assertEquals(BodyPart.LIMBS, BodyHitResolver.fromImpactPoint(0.20D, 0.40D));
+        assertEquals(BodyPart.LIMBS, BodyHitResolver.fromImpactPoint(0.20D, -0.40D));
     }
 }

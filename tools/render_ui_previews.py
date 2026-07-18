@@ -166,7 +166,9 @@ def body_color(ratio: float) -> tuple[int, int, int, int]:
 
 
 def draw_body_figure(draw: ImageDraw.ImageDraw, x: int, y: int, scale: float = 1.0, values: list[float] | None = None) -> None:
-    values = values or [1.0] * 6
+    values = values or [1.0] * 3
+    if len(values) < 3:
+        values = (values + [1.0] * 3)[:3]
     width = round(38 * scale)
     height = round(60 * scale)
     draw.rectangle((x - 2, y - 2, x + width + 1, y + height + 1), fill=(16, 22, 23, 205), outline=(92, 108, 103, 210))
@@ -180,9 +182,11 @@ def draw_body_figure(draw: ImageDraw.ImageDraw, x: int, y: int, scale: float = 1
         draw.rectangle((sx - 1, sy - 1, sx + sw, sy + sh), fill=(7, 16, 14, 255))
         draw.rectangle((sx, sy, sx + sw - 1, sy + sh - 1), fill=body_color(values[part]))
 
-    for args in [(0, 13, 2, 12, 11), (1, 10, 15, 18, 24), (3, 4, 16, 6, 28),
-                 (2, 28, 16, 6, 28), (5, 11, 41, 7, 18), (4, 20, 41, 7, 18)]:
-        segment(*args)
+    segment(0, 13, 2, 12, 11)
+    segment(1, 10, 15, 18, 24)
+    for args in [(4, 16, 6, 28), (28, 16, 6, 28), (11, 41, 7, 18), (20, 41, 7, 18)]:
+        px, py, pw, ph = args
+        segment(2, px, py, pw, ph)
 
 
 def draw_footer(draw: ImageDraw.ImageDraw, tab: int) -> None:
@@ -207,24 +211,26 @@ def render_overview() -> Image.Image:
     image, draw = screen_base(0)
     draw_heading(draw, "screen.earth_human.status.overview.heading")
     meter_width = 210
+    meter_step = 19
     draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17, meter_width, tr("screen.earth_human.status.hydration"), 0.84, "84%", ACCENT)
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 40, meter_width, tr("screen.earth_human.status.temperature"), 0.48, "37.0 C", ACCENT)
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 63, meter_width, tr("screen.earth_human.status.fatigue"), 0.38, "38%", WARNING)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step, meter_width, tr("screen.earth_human.status.temperature"), 0.48, "37.0 C", ACCENT)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 2, meter_width, tr("screen.earth_human.status.fatigue"), 0.38, "38%", WARNING)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 3, meter_width, tr("screen.earth_human.status.air_quality"), 0.76, "76%", ACCENT)
     body_x = CONTENT_LEFT + meter_width + 12
     draw.rectangle((body_x, CONTENT_TOP + 15, body_x + 57, CONTENT_TOP + 98), fill=(20, 26, 28, 210), outline=ACCENT_DARK)
     label = tr("screen.earth_human.status.body_summary")
     draw.text((body_x + (58 - text_width(draw, label, FONT_SMALL)) // 2, CONTENT_TOP + 20), label, font=FONT_SMALL, fill=MUTED)
-    draw_body_figure(draw, body_x + 14, CONTENT_TOP + 33, 0.82, [0.95, 0.82, 0.68, 0.91, 0.74, 0.88])
+    draw_body_figure(draw, body_x + 14, CONTENT_TOP + 33, 0.82, [0.95, 0.82, 0.78])
     activity = tr("screen.earth_human.status.activity_line", tr("activity.earth_human.walking"), 46)
-    draw.text((CONTENT_LEFT, CONTENT_TOP + 87), fit(draw, activity, meter_width), font=FONT_SMALL, fill=MEDICAL_WHITE)
-    draw.rectangle((CONTENT_LEFT, CONTENT_TOP + 99, CONTENT_LEFT + meter_width - 1, CONTENT_TOP + 102), fill=(17, 23, 25, 255))
-    draw.rectangle((CONTENT_LEFT + 1, CONTENT_TOP + 100, CONTENT_LEFT + 96, CONTENT_TOP + 101), fill=WARNING)
-    note_y = PANEL_TOP + PANEL_HEIGHT - 60
-    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_RIGHT, note_y + 28), fill=(33, 43, 44, 225))
-    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_LEFT + 3, note_y + 28), fill=ACCENT)
-    draw.text((CONTENT_LEFT + 9, note_y + 4), tr("screen.earth_human.status.recommendation"), font=FONT_SMALL, fill=ACCENT)
+    draw.text((CONTENT_LEFT, CONTENT_TOP + 94), fit(draw, activity, meter_width), font=FONT_SMALL, fill=MEDICAL_WHITE)
+    draw.rectangle((CONTENT_LEFT, CONTENT_TOP + 106, CONTENT_LEFT + meter_width - 1, CONTENT_TOP + 109), fill=(17, 23, 25, 255))
+    draw.rectangle((CONTENT_LEFT + 1, CONTENT_TOP + 107, CONTENT_LEFT + 96, CONTENT_TOP + 108), fill=WARNING)
+    note_y = CONTENT_TOP + 112
+    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_RIGHT, note_y + 18), fill=(33, 43, 44, 225))
+    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_LEFT + 3, note_y + 18), fill=ACCENT)
+    draw.text((CONTENT_LEFT + 9, note_y + 5), tr("screen.earth_human.status.recommendation"), font=FONT_SMALL, fill=ACCENT)
     note = tr("screen.earth_human.status.recommend.exertion")
-    draw.text((CONTENT_LEFT + 9, note_y + 16), fit(draw, note, 260, FONT_SMALL), font=FONT_SMALL, fill=MEDICAL_WHITE)
+    draw.text((CONTENT_LEFT + 82, note_y + 5), fit(draw, note, 198, FONT_SMALL), font=FONT_SMALL, fill=MEDICAL_WHITE)
     draw_footer(draw, 0)
     return image
 
@@ -236,9 +242,9 @@ def render_body() -> Image.Image:
     figure_height = 114
     draw.rectangle((CONTENT_LEFT, CONTENT_TOP + 20, CONTENT_LEFT + figure_width - 1, CONTENT_TOP + 20 + figure_height - 1),
                    fill=(20, 26, 28, 215), outline=ACCENT_DARK)
-    draw_body_figure(draw, CONTENT_LEFT + 11, CONTENT_TOP + 26, 1.35, [0.63, 0.78, 0.44, 0.88, 0.21, 0.72])
-    parts = ["头部", "躯干", "左臂", "右臂", "左腿", "右腿"]
-    values = [0.63, 0.78, 0.44, 0.88, 0.21, 0.72]
+    draw_body_figure(draw, CONTENT_LEFT + 11, CONTENT_TOP + 26, 1.35, [0.63, 0.78, 0.44])
+    parts = ["头部", "躯干", "四肢"]
+    values = [0.63, 0.78, 0.44]
     bars_x = CONTENT_LEFT + figure_width + 12
     for index, (part, value) in enumerate(zip(parts, values)):
         draw_meter(draw, bars_x, CONTENT_TOP + 18 + index * 18, CONTENT_RIGHT - bars_x,
@@ -340,34 +346,51 @@ def render_hud() -> Image.Image:
     image = world_background()
     draw = ImageDraw.Draw(image)
     draw_vanilla_hud(draw)
-    draw_body_figure(draw, 6, HEIGHT - 60 - 6, 1.0, [0.82, 0.67, 0.44, 0.93, 0.21, 0.76])
+    draw_body_figure(draw, 6, HEIGHT - 60 - 6, 1.0, [0.82, 0.67, 0.44])
     x = WIDTH // 2 + 10
     y = 191
-    widths = [42, 48, 47]
-    labels = ["水分 84", "体温 37.0", "疲劳 38"]
-    ratios = [0.84, 0.48, 0.38]
-    colors = [ACCENT, ACCENT, WARNING]
-    draw.rectangle((x - 2, y - 1, x + sum(widths) + 3, y + 11), fill=(20, 26, 28, 215), outline=(82, 97, 93, 190))
+    widths = [42, 48, 47, 45]
+    labels = ["水分 84", "体温 37.0", "疲劳 38", "空气 76"]
+    ratios = [0.84, 0.48, 0.38, 0.76]
+    colors = [ACCENT, ACCENT, WARNING, ACCENT]
+    compact = WIDTH - x < sum(widths) + 14
+    first_row = sum(widths[:3]) + 4
+    total_width = first_row if compact else sum(widths) + 6
+    draw.rectangle((x - 2, y - 1, x + total_width + 2, y + (26 if compact else 11)),
+                   fill=(20, 26, 28, 215), outline=(82, 97, 93, 190))
     offset = 0
     for index, width in enumerate(widths):
-        cell_x = x + offset
-        draw.text((cell_x + 1, y), fit(draw, labels[index], width - 2, FONT_SMALL), font=FONT_SMALL, fill=MEDICAL_WHITE)
-        draw.rectangle((cell_x, y + 8, cell_x + width - 1, y + 9), fill=(39, 48, 47, 255))
+        if compact and index == 3:
+            cell_x, cell_y = x, y + 14
+            offset = 0
+        else:
+            cell_x, cell_y = x + offset, y
+        draw.text((cell_x + 1, cell_y), fit(draw, labels[index], width - 2, FONT_SMALL), font=FONT_SMALL, fill=MEDICAL_WHITE)
+        draw.rectangle((cell_x, cell_y + 8, cell_x + width - 1, cell_y + 9), fill=(39, 48, 47, 255))
         fill = round(width * ratios[index])
-        draw.rectangle((cell_x, y + 8, cell_x + max(1, fill) - 1, y + 9), fill=colors[index])
-        offset += width + 2
+        draw.rectangle((cell_x, cell_y + 8, cell_x + max(1, fill) - 1, cell_y + 9), fill=colors[index])
+        if not (compact and index == 3):
+            offset += width + 2
     return image
 
 
 def render_inventory() -> Image.Image:
-    """Preview the actual vanilla-inventory body summary and its clickable hover state."""
+    """Preview the normal body HUD kept clickable while the inventory is open."""
     image = ImageEnhance.Brightness(world_background().filter(ImageFilter.GaussianBlur(2))).enhance(0.55)
     draw = ImageDraw.Draw(image)
     left, top, width, height = 42, 36, 176, 166
     draw.rectangle((left, top, left + width, top + height), fill=(198, 198, 190, 255), outline=(35, 35, 34, 255))
     draw.text((left + 8, top + 7), "玩家背包", font=FONT_BOLD, fill=(52, 53, 50, 255))
+    # The real InventoryScreen still renders Minecraft's own player model here.
+    # Keep this preview neutral so it cannot be mistaken for Earth Human replacing it.
     draw.rectangle((left + 8, top + 23, left + 70, top + 78), fill=(153, 153, 147, 255), outline=(73, 73, 68, 255))
-    draw_body_figure(draw, left + 20, top + 31, 0.72, [0.86, 0.72, 0.45, 0.90, 0.24, 0.80])
+    draw.ellipse((left + 33, top + 30, left + 45, top + 42), fill=(177, 143, 111, 255), outline=(79, 67, 58, 255))
+    draw.rectangle((left + 29, top + 42, left + 49, top + 65), fill=(74, 103, 133, 255), outline=(53, 64, 75, 255))
+    draw.rectangle((left + 24, top + 44, left + 29, top + 65), fill=(177, 143, 111, 255), outline=(79, 67, 58, 255))
+    draw.rectangle((left + 49, top + 44, left + 54, top + 65), fill=(177, 143, 111, 255), outline=(79, 67, 58, 255))
+    draw.rectangle((left + 30, top + 65, left + 38, top + 77), fill=(48, 56, 78, 255), outline=(42, 44, 55, 255))
+    draw.rectangle((left + 40, top + 65, left + 48, top + 77), fill=(48, 56, 78, 255), outline=(42, 44, 55, 255))
+    draw.text((left + 12, top + 82), "MC 原版玩家模型", font=FONT_SMALL, fill=(83, 84, 79, 255))
     for row in range(3):
         for column in range(2):
             x = left + 82 + column * 19
@@ -379,32 +402,24 @@ def render_inventory() -> Image.Image:
             y = top + 91 + row * 18
             draw.rectangle((x, y, x + 16, y + 16), fill=(117, 117, 111, 255), outline=(55, 55, 52, 255))
 
-    summary_x, summary_y, summary_width, summary_height = left + width + 4, top + 3, 82, 72
-    values = [0.86, 0.72, 0.45, 0.90, 0.24, 0.80]
-    draw.rectangle((summary_x - 1, summary_y - 1,
-                   summary_x + summary_width + 1, summary_y + summary_height + 1),
-                  fill=(16, 23, 24, 235), outline=(120, 150, 140, 255))
-    draw.text((summary_x + 4, summary_y + 3), tr("screen.earth_human.inventory.summary"),
-              font=FONT_SMALL, fill=MEDICAL_WHITE)
-    parts = ["head", "torso", "left_arm", "right_arm", "left_leg", "right_leg"]
-    row_height = max(7, (summary_height - 17) // 6)
-    for index, (part, value) in enumerate(zip(parts, values)):
-        row_y = summary_y + 14 + index * row_height
-        label = tr(f"bodypart.earth_human.{part}")
-        label = fit(draw, label, 20, FONT_SMALL)
-        draw.text((summary_x + 4, row_y), label, font=FONT_SMALL, fill=body_color(value))
-        bar_x, bar_width = summary_x + 24, summary_width - 33
-        draw.rectangle((bar_x, row_y + 2, bar_x + bar_width, row_y + 4), fill=(38, 48, 46, 255))
-        fill = max(1, round(bar_width * value))
-        draw.rectangle((bar_x, row_y + 2, bar_x + fill, row_y + 4), fill=body_color(value))
+    values = [0.86, 0.72, 0.45]
+    hover_x, hover_y = 6, HEIGHT - 60 - 6
+    draw_body_figure(draw, hover_x, hover_y, 1.0, values)
+    draw.rectangle((hover_x - 3, hover_y - 3, hover_x + 40, hover_y + 62), outline=ACCENT)
 
-    # Show the same hover state the real panel exposes through its tooltip.
-    hover_x, hover_y = summary_x + 29, summary_y + 37
-    tooltip_x, tooltip_y = min(WIDTH - 146, hover_x + 6), min(HEIGHT - 49, hover_y + 12)
-    draw.rectangle((tooltip_x, tooltip_y, tooltip_x + 139, tooltip_y + 42), fill=(22, 22, 22, 245), outline=(218, 218, 210, 255))
-    draw.text((tooltip_x + 5, tooltip_y + 4), tr("bodypart.earth_human.left_arm"), font=FONT_SMALL, fill=MEDICAL_WHITE)
-    draw.text((tooltip_x + 5, tooltip_y + 16), tr("screen.earth_human.inventory.part_value", 45), font=FONT_SMALL, fill=MEDICAL_WHITE)
-    draw.text((tooltip_x + 5, tooltip_y + 28), tr("screen.earth_human.inventory.click_hint"), font=FONT_SMALL, fill=ACCENT)
+    tooltip_x, tooltip_y = hover_x + 45, hover_y - 4
+    tooltip_width, tooltip_height = 148, 61
+    draw.rectangle((tooltip_x, tooltip_y, tooltip_x + tooltip_width, tooltip_y + tooltip_height),
+                   fill=(22, 22, 22, 245), outline=(218, 218, 210, 255))
+    draw.text((tooltip_x + 5, tooltip_y + 4), tr("screen.earth_human.inventory.summary"),
+              font=FONT_BOLD, fill=MEDICAL_WHITE)
+    for index, (part, value) in enumerate(zip(["head", "torso", "limbs"], values)):
+        line = tr("screen.earth_human.inventory.part_line",
+                  tr(f"bodypart.earth_human.{part}"), round(value * 100))
+        draw.text((tooltip_x + 5, tooltip_y + 16 + index * 10), line,
+                  font=FONT_SMALL, fill=body_color(value))
+    draw.text((tooltip_x + 5, tooltip_y + 48), tr("screen.earth_human.inventory.click_hint"),
+              font=FONT_SMALL, fill=ACCENT)
     draw.polygon([(hover_x, hover_y), (hover_x + 5, hover_y + 9), (hover_x + 3, hover_y + 4)], fill=(245, 245, 240, 255))
     return image
 

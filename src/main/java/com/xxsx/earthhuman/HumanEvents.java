@@ -2,8 +2,10 @@ package com.xxsx.earthhuman;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.tags.DamageTypeTags;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
@@ -14,6 +16,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.attribute.BedRule;
 import net.minecraft.world.attribute.EnvironmentAttributes;
 import net.minecraft.world.level.Level;
@@ -40,6 +43,7 @@ public final class HumanEvents {
     private static final String SLEEP_NAP = SLEEP_PREFIX + "nap";
     private static final String SLEEP_START_GAME_TIME = SLEEP_PREFIX + "start_game_time";
     private static final String SLEEP_START_CLOCK_TIME = SLEEP_PREFIX + "start_clock_time";
+    private static final String DUST_EXPOSURE_UNTIL = EarthHuman.MODID + ".exposure.dust_until";
     private static final double FALL_LEG_DAMAGE_MULTIPLIER = 1.35D;
     private static final double MELEE_REACH = 3.25D;
     private static final long DAY_TICKS = 24_000L;
@@ -75,6 +79,9 @@ public final class HumanEvents {
             status.currentActivity = HumanActivityType.IDLE;
             if (EarthHumanConfig.temperatureEnabled()) {
                 status.bodyTemperature += (37.0D - status.bodyTemperature) * 0.03D;
+            }
+            if (EarthHumanConfig.airQualityEnabled()) {
+                status.airQuality = Math.min(100.0D, status.airQuality + 0.30D);
             }
             status.save(player);
             HumanNetwork.sync(player, status);
@@ -148,22 +155,26 @@ public final class HumanEvents {
         }
 
         if (EarthHumanConfig.temperatureEnabled()) {
-            double targetTemperature = 37.0D;
-            if (player.level().dimension() == Level.NETHER) {
-                targetTemperature += 1.10D;
-            }
-            if (player.isInWaterOrRain() || player.level().isRainingAt(player.blockPosition())) {
-                targetTemperature -= 0.55D;
-            }
-            if (EarthHumanConfig.hydrationEnabled() && status.hydration < 15.0D && targetTemperature > 37.0D) {
-                targetTemperature += 0.35D;
-            }
+            double targetTemperature = sampleTargetTemperature(player, status);
             double temperatureDrift = Math.abs(targetTemperature - 37.0D) > 0.05D
                     ? 0.018D * arcana.temperatureStressMultiplier()
                     : 0.018D * arcana.recoveryMultiplier();
             status.bodyTemperature += (targetTemperature - status.bodyTemperature)
                     * temperatureDrift
                     * EarthHumanConfig.temperatureRateMultiplier();
+        }
+
+        if (EarthHumanConfig.airQualityEnabled()) {
+            AirQualityModel.Exposure exposure = sampleAirExposure(player);
+            status.airQuality = AirQualityModel.next(
+                    status.airQuality,
+                    exposure.smoke(),
+                    exposure.dust(),
+                    exposure.underwater(),
+                    exposure.nether(),
+                    PpeMaskItem.filterStrength(player),
+                    EarthHumanConfig.airQualityLossMultiplier(),
+                    EarthHumanConfig.airQualityRecoveryMultiplier());
         }
 
         warnIfNeeded(player, status);
@@ -294,12 +305,15 @@ public final class HumanEvents {
         }
         HumanBodyStatus body = HumanBodyStatus.get(player);
         if (EarthHumanConfig.bodyHealthEnabled()) {
-            body.spreadFromUse(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.18D);
+            body.spreadFromUse(player, BodyPart.LIMBS, 0.18D);
         }
-        HumanExercise.applyPassiveUse(player, BodyPart.LEFT_ARM, 0.030D, 0.038D);
-        HumanExercise.applyPassiveUse(player, BodyPart.RIGHT_ARM, 0.030D, 0.038D);
+        if (EarthHumanConfig.airQualityEnabled() && event.getState().is(HumanExposureTags.DUST_SOURCES)) {
+            player.getPersistentData().putLong(DUST_EXPOSURE_UNTIL,
+                    player.level().getGameTime() + 40L);
+        }
+        HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.030D, 0.038D);
         if (EarthHumanConfig.bodyEffectsEnabled()) {
-            float multiplier = armUseSpeedMultiplier(body);
+            float multiplier = limbUseSpeedMultiplier(body);
             if (player.hasEffect(EarthHumanEffects.MUSCLE_STRAIN)) {
                 multiplier *= 0.86F;
             }
@@ -316,10 +330,9 @@ public final class HumanEvents {
         }
         HumanBodyStatus body = HumanBodyStatus.get(player);
         if (EarthHumanConfig.bodyHealthEnabled()) {
-            body.spreadFromUse(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.26D);
+            body.spreadFromUse(player, BodyPart.LIMBS, 0.26D);
         }
-        HumanExercise.applyPassiveUse(player, BodyPart.LEFT_ARM, 0.045D, 0.055D);
-        HumanExercise.applyPassiveUse(player, BodyPart.RIGHT_ARM, 0.045D, 0.055D);
+        HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.045D, 0.055D);
         HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.020D, 0.030D);
         body.applyFunctionalEffects(player);
         body.save(player);
@@ -446,6 +459,52 @@ public final class HumanEvents {
         return 0.0D;
     }
 
+    private static double sampleTargetTemperature(ServerPlayer player, HumanStatus status) {
+        double biomeTemperature = player.level().getBiome(player.blockPosition()).value().getBaseTemperature();
+        long dayTime = Math.floorMod(clockTime(player.level()), DAY_TICKS);
+        boolean night = dayTime >= 13_000L && dayTime < 23_000L;
+        boolean wet = player.isInWaterOrRain() || player.level().isRainingAt(player.blockPosition());
+        return ThermalModel.target(new ThermalModel.Inputs(
+                biomeTemperature,
+                player.level().dimension() == Level.NETHER,
+                wet,
+                night,
+                player.getY(),
+                nearbyHeatSource(player),
+                player.isInWater()), status.hydration);
+    }
+
+    private static AirQualityModel.Exposure sampleAirExposure(ServerPlayer player) {
+        CompoundTag data = player.getPersistentData();
+        long now = player.level().getGameTime();
+        boolean dust = data.getLongOr(DUST_EXPOSURE_UNTIL, -1L) >= now;
+        boolean smoke = false;
+        BlockPos center = player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-2, -1, -2), center.offset(2, 2, 2))) {
+            var state = player.level().getBlockState(pos);
+            if (state.is(BlockTags.FIRE) || state.is(BlockTags.CAMPFIRES)) {
+                smoke = true;
+                break;
+            }
+        }
+        return new AirQualityModel.Exposure(
+                smoke,
+                dust,
+                player.isInWater(),
+                player.level().dimension() == Level.NETHER);
+    }
+
+    private static boolean nearbyHeatSource(ServerPlayer player) {
+        BlockPos center = player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-2, -1, -2), center.offset(2, 2, 2))) {
+            var state = player.level().getBlockState(pos);
+            if (state.is(BlockTags.FIRE) || state.is(BlockTags.CAMPFIRES) || state.is(Blocks.LAVA)) {
+                return true;
+            }
+        }
+        return player.isOnFire() || player.isInLava();
+    }
+
     private static void warnIfNeeded(ServerPlayer player, HumanStatus status) {
         long now = player.level().getGameTime();
         if (now - status.lastWarningGameTime < 600L) {
@@ -463,6 +522,9 @@ public final class HumanEvents {
             status.lastWarningGameTime = now;
         } else if (EarthHumanConfig.temperatureEnabled() && status.bodyTemperature > 38.2D) {
             player.sendSystemMessage(Component.translatable("message.earth_human.warning.heat"));
+            status.lastWarningGameTime = now;
+        } else if (EarthHumanConfig.airQualityEnabled() && status.airQuality < 35.0D) {
+            player.sendSystemMessage(Component.translatable("message.earth_human.warning.air_quality"));
             status.lastWarningGameTime = now;
         }
     }
@@ -600,6 +662,13 @@ public final class HumanEvents {
                 player.hurtServer(level, level.damageSources().hotFloor(), 1.0F);
             }
         }
+        if (EarthHumanConfig.airQualityEnabled() && status.airQuality < 25.0D) {
+            int amplifier = status.airQuality < 10.0D ? 1 : 0;
+            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, amplifier, true, false, true));
+            if (status.airQuality < 10.0D && player.tickCount % 120 == 0) {
+                player.causeFoodExhaustion(0.08F);
+            }
+        }
     }
 
     private static void bridgePassiveVanillaHealthChange(ServerPlayer player, HumanBodyStatus body) {
@@ -626,54 +695,48 @@ public final class HumanEvents {
     }
 
     private static BodyPart chooseDamagedPart(ServerPlayer player, DamageSource source, float damage) {
-        if (isFallLike(source)) {
-            return alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-        }
-        if (source.is(HumanDamageTags.HEAD_PRIORITY)
-                || source.is(DamageTypeTags.IS_DROWNING)
-                || source.is(DamageTypes.STARVE)
-                || source.is(DamageTypes.WITHER)
-                || source.is(DamageTypes.MAGIC)
-                || source.is(DamageTypes.INDIRECT_MAGIC)
-                || source.is(DamageTypes.DRAGON_BREATH)) {
-            return BodyPart.HEAD;
-        }
-        if (source.is(DamageTypeTags.IS_EXPLOSION)) {
-            BodyPart explosionPart = chooseExplosionImpactPart(player, source);
-            if (explosionPart != null) {
-                return explosionPart;
+        DamageProfile profile = DamageProfile.classify(source);
+        switch (profile) {
+            case FALL, ENVIRONMENT -> {
+                return profile == DamageProfile.FALL
+                        ? BodyPart.LIMBS
+                        : chooseEnvironmentalContactPart(player, source);
             }
-        }
-        if (source.is(DamageTypeTags.IS_FIRE)
-                || source.is(DamageTypeTags.IS_FREEZING)
-                || source.is(DamageTypes.DRY_OUT)) {
-            return chooseEnvironmentalContactPart(player, source);
-        }
-        if (source.is(DamageTypes.CACTUS)
-                || source.is(DamageTypes.STING)
-                || source.is(DamageTypes.SWEET_BERRY_BUSH)) {
-            return chooseLowContactPart(player, source);
-        }
-
-        if (source.is(DamageTypeTags.IS_PROJECTILE)) {
-            BodyPart projectilePart = chooseProjectileImpactPart(player, source);
-            if (projectilePart != null) {
-                return projectilePart;
+            case HEAD -> {
+                return BodyPart.HEAD;
             }
-        }
-
-        BodyPart meleePart = chooseMeleeImpactPart(player, source);
-        if (meleePart != null) {
-            return meleePart;
+            case FULL_BODY -> {
+                return BodyPart.TORSO;
+            }
+            case EXPLOSION -> {
+                BodyPart explosionPart = chooseExplosionImpactPart(player, source);
+                if (explosionPart != null) {
+                    return explosionPart;
+                }
+            }
+            case LOW_CONTACT -> {
+                return chooseLowContactPart(player, source);
+            }
+            case PROJECTILE -> {
+                BodyPart projectilePart = chooseProjectileImpactPart(player, source);
+                if (projectilePart != null) {
+                    return projectilePart;
+                }
+            }
+            case MELEE -> {
+                BodyPart meleePart = chooseMeleeImpactPart(player, source);
+                if (meleePart != null) {
+                    return meleePart;
+                }
+            }
+            case BYPASS, GENERIC -> {
+            }
         }
 
         int roll = Math.floorMod(player.tickCount * 31 + source.getMsgId().hashCode() + Math.round(damage * 10.0F), 100);
         if (roll < 10) return BodyPart.HEAD;
         if (roll < 45) return BodyPart.TORSO;
-        if (roll < 59) return BodyPart.LEFT_ARM;
-        if (roll < 73) return BodyPart.RIGHT_ARM;
-        if (roll < 87) return BodyPart.LEFT_LEG;
-        return BodyPart.RIGHT_LEG;
+        return BodyPart.LIMBS;
     }
 
     private static BodyPart chooseProjectileImpactPart(ServerPlayer player, DamageSource source) {
@@ -736,10 +799,10 @@ public final class HumanEvents {
             return BodyPart.HEAD;
         }
         if (vertical < 0.38D) {
-            return sidePart(player, hit, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+            return BodyPart.LIMBS;
         }
         if (Math.abs(localRightOffset(player, hit)) > 0.24D) {
-            return sidePart(player, hit, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
+            return BodyPart.LIMBS;
         }
         return BodyPart.TORSO;
     }
@@ -747,19 +810,19 @@ public final class HumanEvents {
     private static BodyPart chooseEnvironmentalContactPart(ServerPlayer player, DamageSource source) {
         if (source.is(DamageTypeTags.IS_FREEZING) || source.is(DamageTypes.DRY_OUT)) {
             return source.is(DamageTypeTags.IS_FREEZING)
-                    ? alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG)
+                    ? BodyPart.LIMBS
                     : BodyPart.TORSO;
         }
         if (source.is(DamageTypes.HOT_FLOOR)
                 || source.is(DamageTypes.IN_FIRE)
                 || source.is(DamageTypes.ON_FIRE)
                 || source.is(DamageTypes.CAMPFIRE)) {
-            return alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+            return BodyPart.LIMBS;
         }
         if (source.is(DamageTypes.LAVA)) {
-            return player.isInLava() ? BodyPart.TORSO : alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+            return player.isInLava() ? BodyPart.TORSO : BodyPart.LIMBS;
         }
-        return player.onGround() ? alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG) : BodyPart.TORSO;
+        return player.onGround() ? BodyPart.LIMBS : BodyPart.TORSO;
     }
 
     private static BodyPart chooseLowContactPart(ServerPlayer player, DamageSource source) {
@@ -768,7 +831,7 @@ public final class HumanEvents {
             Vec3 hit = closestPointOnPlayerBox(player, direct.position());
             return bodyPartFromImpactPoint(player, hit);
         }
-        return player.onGround() ? alternating(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG) : alternating(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
+        return player.onGround() ? BodyPart.LIMBS : BodyPart.TORSO;
     }
 
     private static Vec3 estimateImpactPoint(ServerPlayer player, Vec3 start, Vec3 end) {
@@ -805,20 +868,12 @@ public final class HumanEvents {
         return BodyHitResolver.localRightOffset(relative.x, relative.z, player.getYRot());
     }
 
-    private static BodyPart sidePart(ServerPlayer player, Vec3 hit, BodyPart left, BodyPart right) {
-        return BodyHitResolver.sidePart(localRightOffset(player, hit), left, right);
-    }
-
     private static Vec3 closestPointOnPlayerBox(ServerPlayer player, Vec3 point) {
         AABB box = player.getBoundingBox();
         return new Vec3(
                 HumanStatus.clamp(point.x, box.minX, box.maxX),
                 HumanStatus.clamp(point.y, box.minY, box.maxY),
                 HumanStatus.clamp(point.z, box.minZ, box.maxZ));
-    }
-
-    private static BodyPart alternating(ServerPlayer player, BodyPart first, BodyPart second) {
-        return (player.tickCount & 1) == 0 ? first : second;
     }
 
     private static void markGroundState(ServerPlayer player) {
@@ -840,12 +895,10 @@ public final class HumanEvents {
 
         data.putLong(LAST_JUMP_TIME, player.level().getGameTime());
         addExertion(player, player.isSprinting() ? 1.35D : 0.85D);
-        HumanExercise.applyPassiveUse(player, BodyPart.LEFT_LEG, 0.018D, 0.030D);
-        HumanExercise.applyPassiveUse(player, BodyPart.RIGHT_LEG, 0.018D, 0.030D);
+        HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.024D, 0.040D);
         double base = player.isSprinting() ? 0.030D : 0.018D;
-        boolean changed = damageLegFromJump(player, body, BodyPart.LEFT_LEG, base);
-        changed |= damageLegFromJump(player, body, BodyPart.RIGHT_LEG, base);
-        changed |= body.spreadFromUse(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG, 0.16D);
+        boolean changed = damageLegFromJump(player, body, BodyPart.LIMBS, base * 2.0D);
+        changed |= body.spreadFromUse(player, BodyPart.LIMBS, 0.16D);
         return changed;
     }
 
@@ -866,10 +919,7 @@ public final class HumanEvents {
         double total = Math.max(0.0D, vanillaDamage)
                 * FALL_LEG_DAMAGE_MULTIPLIER
                 * EarthHumanConfig.bodyDamageMultiplier();
-        double leftAmount = total * 0.50D;
-        double rightAmount = total - leftAmount;
-        applyLegImpact(player, body, BodyPart.LEFT_LEG, leftAmount);
-        applyLegImpact(player, body, BodyPart.RIGHT_LEG, rightAmount);
+        applyLegImpact(player, body, BodyPart.LIMBS, total);
     }
 
     private static void applyLegImpact(ServerPlayer player, HumanBodyStatus body, BodyPart leg, double amount) {
@@ -886,8 +936,7 @@ public final class HumanEvents {
 
     private static void applyCompatibleFallDamageToLegs(ServerPlayer player, HumanBodyStatus body, double vanillaDamage) {
         double strengthened = Math.max(0.0D, vanillaDamage) * FALL_LEG_DAMAGE_MULTIPLIER;
-        applyCompatiblePartDamage(player, body, BodyPart.LEFT_LEG, strengthened);
-        applyCompatiblePartDamage(player, body, BodyPart.RIGHT_LEG, strengthened);
+        applyCompatiblePartDamage(player, body, BodyPart.LIMBS, strengthened);
     }
 
     private static void applyCompatibleFullBodyDamage(ServerPlayer player, HumanBodyStatus body, double vanillaDamage) {
@@ -937,10 +986,9 @@ public final class HumanEvents {
         }
         HumanBodyStatus body = HumanBodyStatus.get(serverPlayer);
         if (EarthHumanConfig.bodyHealthEnabled()) {
-            body.spreadFromUse(serverPlayer, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, baseAmount);
+            body.spreadFromUse(serverPlayer, BodyPart.LIMBS, baseAmount);
         }
-        HumanExercise.applyPassiveUse(serverPlayer, BodyPart.LEFT_ARM, 0.010D, 0.018D);
-        HumanExercise.applyPassiveUse(serverPlayer, BodyPart.RIGHT_ARM, 0.010D, 0.018D);
+        HumanExercise.applyPassiveUse(serverPlayer, BodyPart.LIMBS, 0.010D, 0.018D);
         body.save(serverPlayer);
     }
 
@@ -953,55 +1001,44 @@ public final class HumanEvents {
 
         if (EarthHumanConfig.bodyHealthEnabled()) {
             switch (type) {
-                case WALKING -> body.spreadFromUse(player, 0.12D * factor, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-                case SPRINTING -> body.spreadFromUse(player, 0.28D * factor, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                case WALKING -> body.spreadFromUse(player, 0.12D * factor, BodyPart.LIMBS);
+                case SPRINTING -> body.spreadFromUse(player, 0.28D * factor, BodyPart.LIMBS);
                 case SWIMMING -> body.spreadFromUse(player, 0.16D * factor,
-                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                        BodyPart.TORSO, BodyPart.LIMBS);
                 case CLIMBING -> body.spreadFromUse(player, 0.20D * factor,
-                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                        BodyPart.TORSO, BodyPart.LIMBS);
                 case RIDING -> body.spreadFromUse(player, 0.025D * factor,
-                        BodyPart.TORSO, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
+                        BodyPart.TORSO, BodyPart.LIMBS);
                 case ELYTRA, FLYING -> body.spreadFromUse(player, 0.08D * factor,
-                        BodyPart.TORSO, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
+                        BodyPart.TORSO, BodyPart.LIMBS);
                 default -> {
                 }
             }
         }
 
         switch (type) {
-            case WALKING -> trainLegs(player, 0.030D * factor, 0.030D * factor);
-            case SPRINTING -> trainLegs(player, 0.065D * factor, 0.070D * factor);
+            case WALKING -> HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.030D * factor, 0.030D * factor);
+            case SPRINTING -> HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.065D * factor, 0.070D * factor);
             case SWIMMING -> {
-                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.040D * factor, 0.050D * factor);
-                trainLegs(player, 0.035D * factor, 0.040D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.060D * factor, 0.090D * factor);
                 HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.030D * factor, 0.040D * factor);
             }
             case CLIMBING -> {
-                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.055D * factor, 0.070D * factor);
-                trainLegs(player, 0.025D * factor, 0.035D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.080D * factor, 0.105D * factor);
                 HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.025D * factor, 0.040D * factor);
             }
             case RIDING -> {
-                trainLegs(player, 0.002D * factor, 0.003D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.002D * factor, 0.003D * factor);
                 HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.004D * factor, 0.006D * factor);
             }
             case ELYTRA -> {
-                trainPair(player, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM, 0.012D * factor, 0.018D * factor);
+                HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.012D * factor, 0.018D * factor);
                 HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.018D * factor, 0.025D * factor);
             }
             case FLYING -> HumanExercise.applyPassiveUse(player, BodyPart.TORSO, 0.006D * factor, 0.008D * factor);
             default -> {
             }
         }
-    }
-
-    private static void trainLegs(ServerPlayer player, double xpGain, double loadGain) {
-        trainPair(player, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG, xpGain, loadGain);
-    }
-
-    private static void trainPair(ServerPlayer player, BodyPart first, BodyPart second, double xpGain, double loadGain) {
-        HumanExercise.applyPassiveUse(player, first, xpGain, loadGain);
-        HumanExercise.applyPassiveUse(player, second, xpGain, loadGain);
     }
 
     private static double updateExertionLoad(ServerPlayer player, HumanStatus status,
@@ -1066,23 +1103,11 @@ public final class HumanEvents {
         status.save(player);
     }
 
-    private static float armUseSpeedMultiplier(HumanBodyStatus body) {
-        double left = body.percent(BodyPart.LEFT_ARM);
-        double right = body.percent(BodyPart.RIGHT_ARM);
-        boolean leftFailed = body.health(BodyPart.LEFT_ARM) <= 0.01D;
-        boolean rightFailed = body.health(BodyPart.RIGHT_ARM) <= 0.01D;
-        if (leftFailed && rightFailed) {
-            return 0.20F;
-        }
-        if (leftFailed || rightFailed) {
-            return 0.45F;
-        }
-        if (left < 0.30D && right < 0.30D) {
-            return 0.55F;
-        }
-        if (left < 0.30D || right < 0.30D) {
-            return 0.75F;
-        }
+    private static float limbUseSpeedMultiplier(HumanBodyStatus body) {
+        double limbs = body.percent(BodyPart.LIMBS);
+        if (limbs <= 0.01D) return 0.35F;
+        if (limbs < 0.30D) return 0.60F;
+        if (limbs < 0.60D) return 0.82F;
         return 1.0F;
     }
 }

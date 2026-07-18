@@ -57,8 +57,10 @@ public final class EarthHumanItems {
             ItemUseAnimation.BRUSH, 0.0D, 0.0D, -18.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 200, 0),
             new StatusConsumableItem.EffectSpec(MobEffects.ABSORPTION, 300, 0));
-    public static final DeferredItem<Item> CLOTH_MASK = guided("cloth_mask", props -> props.stacksTo(16));
-    public static final DeferredItem<Item> DUST_MASK = guided("dust_mask", props -> props.stacksTo(16));
+    public static final DeferredItem<Item> CLOTH_MASK = mask("cloth_mask", props -> props.stacksTo(16),
+            0.45D, "tooltip.earth_human.cloth_mask.filter");
+    public static final DeferredItem<Item> DUST_MASK = mask("dust_mask", props -> props.stacksTo(16),
+            0.82D, "tooltip.earth_human.dust_mask.filter");
     public static final DeferredItem<Item> SIMPLE_THERMOMETER = thermometer("simple_thermometer", props -> props.stacksTo(1));
     public static final DeferredItem<Item> FIELD_HEALTH_NOTE = fieldNote("field_health_note", props -> props.stacksTo(1));
     public static final DeferredItem<Item> RESISTANCE_BAND = exercise("resistance_band", props -> props.stacksTo(1),
@@ -95,6 +97,15 @@ public final class EarthHumanItems {
     private static DeferredItem<Item> thermometer(String id, UnaryOperator<Item.Properties> properties) {
         DeferredItem<Item> item = ITEMS.registerItem(id,
                 props -> new ThermometerItem(props, "tooltip.earth_human." + id),
+                properties);
+        TAB_ITEMS.add(item);
+        return item;
+    }
+
+    private static DeferredItem<Item> mask(String id, UnaryOperator<Item.Properties> properties,
+                                           double filterStrength, String protectionKey) {
+        DeferredItem<Item> item = ITEMS.registerItem(id,
+                props -> new PpeMaskItem(props, "tooltip.earth_human." + id, filterStrength, protectionKey),
                 properties);
         TAB_ITEMS.add(item);
         return item;

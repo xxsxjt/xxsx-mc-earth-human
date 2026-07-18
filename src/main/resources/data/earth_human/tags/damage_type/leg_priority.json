@@ -1,0 +1,11 @@
+{
+  "replace": false,
+  "values": [
+    "minecraft:hot_floor",
+    "minecraft:in_fire",
+    "minecraft:on_fire",
+    "minecraft:campfire",
+    "minecraft:lava",
+    "minecraft:freeze"
+  ]
+}

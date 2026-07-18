@@ -22,11 +22,8 @@ public final class BodyHitResolver {
         if (verticalRatio >= 0.78D) {
             return BodyPart.HEAD;
         }
-        if (verticalRatio < 0.42D) {
-            return sidePart(localRightOffset, BodyPart.LEFT_LEG, BodyPart.RIGHT_LEG);
-        }
-        if (Math.abs(localRightOffset) > 0.28D) {
-            return sidePart(localRightOffset, BodyPart.LEFT_ARM, BodyPart.RIGHT_ARM);
+        if (verticalRatio < 0.42D || Math.abs(localRightOffset) > 0.28D) {
+            return BodyPart.LIMBS;
         }
         return BodyPart.TORSO;
     }

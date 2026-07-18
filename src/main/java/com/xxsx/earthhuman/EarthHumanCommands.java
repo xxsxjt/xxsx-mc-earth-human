@@ -63,6 +63,9 @@ public final class EarthHumanCommands {
                         .then(Commands.literal("temperature")
                                 .then(Commands.argument("value", DoubleArgumentType.doubleArg(32.0D, 42.5D))
                                         .executes(ctx -> setTemperature(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "value")))))
+                        .then(Commands.literal("air_quality")
+                                .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0D, 100.0D))
+                                        .executes(ctx -> setAirQuality(ctx.getSource(), DoubleArgumentType.getDouble(ctx, "value")))))
                         .then(Commands.literal("body")
                                 .then(Commands.argument("part", StringArgumentType.word())
                                 .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0D))
@@ -96,6 +99,8 @@ public final class EarthHumanCommands {
                 String.format(java.util.Locale.ROOT, "%.1f", status.bodyTemperature), temperatureText(status.bodyTemperature)), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.status.fatigue",
                 Math.round(status.fatigue), fatigueText(status.fatigue)), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.status.air_quality",
+                Math.round(status.airQuality), airQualityText(status.airQuality)), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.status.activity",
                 Component.translatable(status.currentActivity.translationKey()),
                 Math.round(status.exertionLoad),
@@ -166,6 +171,7 @@ public final class EarthHumanCommands {
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.thirst"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.fatigue"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.temperature"), false);
+        source.sendSuccess(() -> Component.translatable("message.earth_human.help.air_quality"), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.help.arcana"), false);
         return 1;
     }
@@ -250,6 +256,10 @@ public final class EarthHumanCommands {
         return set(source, value, "temperature");
     }
 
+    private static int setAirQuality(CommandSourceStack source, double value) {
+        return set(source, value, "air_quality");
+    }
+
     private static int setBodyPart(CommandSourceStack source, String partId, double value) {
         ServerPlayer player = source.getPlayer();
         if (player == null) {
@@ -287,6 +297,7 @@ public final class EarthHumanCommands {
             case "hydration" -> status.hydration = value;
             case "fatigue" -> status.fatigue = value;
             case "temperature" -> status.bodyTemperature = value;
+            case "air_quality" -> status.airQuality = value;
             default -> {
                 source.sendFailure(Component.literal("Unknown field: " + field));
                 return 0;
@@ -320,5 +331,9 @@ public final class EarthHumanCommands {
         if (value < 35.5D) return Component.translatable("message.earth_human.state.temperature.cold");
         if (value > 38.2D) return Component.translatable("message.earth_human.state.temperature.hot");
         return Component.translatable("message.earth_human.state.ok");
+    }
+
+    private static Component airQualityText(double value) {
+        return Component.translatable("message.earth_human.state.air_quality." + AirQualityModel.stateId(value));
     }
 }

@@ -10,6 +10,8 @@ public final class HumanCareTags {
     public static final TagKey<Item> FIRST_AID = item("care/first_aid");
     public static final TagKey<Item> WARMING = item("care/warming");
     public static final TagKey<Item> COOLING = item("care/cooling");
+    public static final TagKey<Item> MASKS = item("care/masks");
+    public static final TagKey<Item> DUST_MASKS = item("care/dust_masks");
 
     private HumanCareTags() {
     }

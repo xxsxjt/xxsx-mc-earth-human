@@ -252,7 +252,7 @@ public class EarthHumanStatusScreen extends Screen {
         HumanBodySyncPayload body = EarthHumanClient.syncedBody();
         int bodyPlateWidth = compactWidth() ? 58 : 78;
         int meterWidth = contentWidth() - bodyPlateWidth - 12;
-        int meterStep = compactHeight() ? 23 : 27;
+        int meterStep = compactHeight() ? 19 : 24;
 
         drawSectionHeading(g, x, y, "screen.earth_human.status.overview.heading");
         drawMeter(g, x, y + 17, meterWidth, "screen.earth_human.status.hydration",
@@ -264,6 +264,9 @@ public class EarthHumanStatusScreen extends Screen {
         drawMeter(g, x, y + 17 + meterStep * 2, meterWidth, "screen.earth_human.status.fatigue",
                 status.fatigue / 100.0D, Math.round(status.fatigue) + "%",
                 vitalColor(status.fatigue / 100.0D, true));
+        drawMeter(g, x, y + 17 + meterStep * 3, meterWidth, "screen.earth_human.status.air_quality",
+                status.airQuality / 100.0D, Math.round(status.airQuality) + "%",
+                airQualityColor(status.airQuality));
 
         int bodyX = x + meterWidth + 12;
         int plateHeight = compactHeight() ? 84 : 96;
@@ -275,17 +278,20 @@ public class EarthHumanStatusScreen extends Screen {
         BodyHudRenderer.draw(g, body, bodyX + (bodyPlateWidth - BodyHudRenderer.width(scale)) / 2,
                 y + 33, scale, 0.95D);
 
-        int activityY = y + 18 + meterStep * 3;
+        int activityY = y + 18 + meterStep * 4;
         g.text(font, fit(Component.translatable("screen.earth_human.status.activity_line",
                 Component.translatable(status.currentActivity.translationKey()), Math.round(status.exertionLoad)), meterWidth),
                 x, activityY, MEDICAL_WHITE, false);
         drawThinBar(g, x, activityY + 12, meterWidth, status.exertionLoad / 100.0D,
                 vitalColor(status.exertionLoad / 100.0D, true));
 
-        int noteY = compactHeight()
-                ? panelTop() + panelHeight() - 60
-                : Math.max(activityY + 23, panelTop() + panelHeight() - 62);
-        drawRecommendation(g, x, noteY, contentWidth(), recommendation(status, body));
+        Component recommendation = recommendation(status, body);
+        if (compactHeight()) {
+            drawCompactRecommendation(g, x, activityY + 18, contentWidth(), recommendation);
+        } else {
+            int noteY = Math.max(activityY + 23, panelTop() + panelHeight() - 62);
+            drawRecommendation(g, x, noteY, contentWidth(), recommendation);
+        }
     }
 
     private void drawBody(GuiGraphicsExtractor g) {
@@ -433,6 +439,14 @@ public class EarthHumanStatusScreen extends Screen {
         g.text(font, fit(recommendation, width - 18), x + 9, y + 16, MEDICAL_WHITE, false);
     }
 
+    private void drawCompactRecommendation(GuiGraphicsExtractor g, int x, int y, int width,
+                                            Component recommendation) {
+        g.fill(x, y, x + width, y + 18, 0xD0212B2C);
+        g.fill(x, y, x + 4, y + 18, ACCENT);
+        g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 9, y + 5, ACCENT, false);
+        g.text(font, fit(recommendation, width - 92), x + 82, y + 5, MEDICAL_WHITE, false);
+    }
+
     private void drawLedger(GuiGraphicsExtractor g, int left, int top, int right, int bottom) {
         for (int y = top + 10; y < bottom; y += 12) {
             g.fill(left, y, right, y + 1, LEDGER);
@@ -467,6 +481,7 @@ public class EarthHumanStatusScreen extends Screen {
         if (status.hydration < 35.0D) return Component.translatable("screen.earth_human.status.recommend.hydration");
         if (status.fatigue > 70.0D) return Component.translatable("screen.earth_human.status.recommend.fatigue");
         if (status.exertionLoad > 70.0D) return Component.translatable("screen.earth_human.status.recommend.exertion");
+        if (status.airQuality < 35.0D) return Component.translatable("screen.earth_human.status.recommend.air_quality");
         if (status.bodyTemperature < 35.8D) return Component.translatable("screen.earth_human.status.recommend.cold");
         if (status.bodyTemperature > 38.0D) return Component.translatable("screen.earth_human.status.recommend.hot");
         return Component.translatable("screen.earth_human.status.recommend.ok");
@@ -573,6 +588,12 @@ public class EarthHumanStatusScreen extends Screen {
         if (ratio <= 0.01D) return 0xFF080A0A;
         if (ratio < 0.30D) return DANGER;
         if (ratio < 0.65D) return WARNING;
+        return ACCENT;
+    }
+
+    private static int airQualityColor(double value) {
+        if (value < 15.0D) return DANGER;
+        if (value < 35.0D) return WARNING;
         return ACCENT;
     }
 

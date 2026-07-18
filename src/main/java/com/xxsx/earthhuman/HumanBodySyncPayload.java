@@ -8,40 +8,40 @@ import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 public record HumanBodySyncPayload(
         double head,
         double torso,
-        double leftArm,
-        double rightArm,
-        double leftLeg,
-        double rightLeg) implements CustomPacketPayload {
+        double limbs) implements CustomPacketPayload {
     public static final Type<HumanBodySyncPayload> TYPE =
             new Type<>(EarthHuman.id("human_body_sync"));
 
     public static final StreamCodec<RegistryFriendlyByteBuf, HumanBodySyncPayload> CODEC = StreamCodec.composite(
             ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::head,
             ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::torso,
-            ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::leftArm,
-            ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::rightArm,
-            ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::leftLeg,
-            ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::rightLeg,
+            ByteBufCodecs.DOUBLE.cast(), HumanBodySyncPayload::limbs,
             HumanBodySyncPayload::new);
+
+    /** Compatibility constructor for clients compiled against the six-region beta payload. */
+    @Deprecated
+    public HumanBodySyncPayload(double head, double torso, double leftArm, double rightArm,
+                                double leftLeg, double rightLeg) {
+        this(head, torso, (leftArm + rightArm + leftLeg + rightLeg) / 4.0D);
+    }
+
+    @Deprecated public double leftArm() { return limbs; }
+    @Deprecated public double rightArm() { return limbs; }
+    @Deprecated public double leftLeg() { return limbs; }
+    @Deprecated public double rightLeg() { return limbs; }
 
     public static HumanBodySyncPayload fromBody(HumanBodyStatus body) {
         return new HumanBodySyncPayload(
                 body.percent(BodyPart.HEAD),
                 body.percent(BodyPart.TORSO),
-                body.percent(BodyPart.LEFT_ARM),
-                body.percent(BodyPart.RIGHT_ARM),
-                body.percent(BodyPart.LEFT_LEG),
-                body.percent(BodyPart.RIGHT_LEG));
+                body.percent(BodyPart.LIMBS));
     }
 
     public double value(BodyPart part) {
         return switch (part) {
             case HEAD -> head;
             case TORSO -> torso;
-            case LEFT_ARM -> leftArm;
-            case RIGHT_ARM -> rightArm;
-            case LEFT_LEG -> leftLeg;
-            case RIGHT_LEG -> rightLeg;
+            case LIMBS -> limbs;
         };
     }
 

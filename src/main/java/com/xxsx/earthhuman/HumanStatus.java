@@ -13,6 +13,7 @@ public final class HumanStatus {
     private static final String EXERTION_LOAD = PREFIX + "exertion_load";
     private static final String CURRENT_ACTIVITY = PREFIX + "current_activity";
     private static final String LAST_ACTIVE_TIME = PREFIX + "last_active_game_time";
+    private static final String AIR_QUALITY = PREFIX + "air_quality";
     private static final String LEGACY_EXERTION_LOAD = PREFIX + "movement.exertion_load";
     private static final String LEGACY_LAST_ACTIVE_TIME = PREFIX + "movement.last_active_game_time";
 
@@ -23,6 +24,7 @@ public final class HumanStatus {
     public double exertionLoad;
     public HumanActivityType currentActivity;
     public long lastActiveGameTime;
+    public double airQuality;
 
     public HumanStatus(double hydration, double bodyTemperature, double fatigue, long lastWarningGameTime) {
         this(hydration, bodyTemperature, fatigue, lastWarningGameTime,
@@ -31,6 +33,13 @@ public final class HumanStatus {
 
     public HumanStatus(double hydration, double bodyTemperature, double fatigue, long lastWarningGameTime,
                        double exertionLoad, HumanActivityType currentActivity, long lastActiveGameTime) {
+        this(hydration, bodyTemperature, fatigue, lastWarningGameTime,
+                exertionLoad, currentActivity, lastActiveGameTime, 100.0D);
+    }
+
+    public HumanStatus(double hydration, double bodyTemperature, double fatigue, long lastWarningGameTime,
+                       double exertionLoad, HumanActivityType currentActivity, long lastActiveGameTime,
+                       double airQuality) {
         this.hydration = hydration;
         this.bodyTemperature = bodyTemperature;
         this.fatigue = fatigue;
@@ -38,6 +47,7 @@ public final class HumanStatus {
         this.exertionLoad = exertionLoad;
         this.currentActivity = currentActivity == null ? HumanActivityType.IDLE : currentActivity;
         this.lastActiveGameTime = lastActiveGameTime;
+        this.airQuality = airQuality;
     }
 
     public static HumanStatus get(Player player) {
@@ -54,7 +64,8 @@ public final class HumanStatus {
                 data.getLongOr(WARN_TIME, -1_000_000L),
                 clamp(data.getDoubleOr(EXERTION_LOAD, data.getDoubleOr(LEGACY_EXERTION_LOAD, 0.0D)), 0.0D, 100.0D),
                 HumanActivityType.byId(data.getStringOr(CURRENT_ACTIVITY, HumanActivityType.IDLE.id)),
-                data.getLongOr(LAST_ACTIVE_TIME, data.getLongOr(LEGACY_LAST_ACTIVE_TIME, -1_000_000L)));
+                data.getLongOr(LAST_ACTIVE_TIME, data.getLongOr(LEGACY_LAST_ACTIVE_TIME, -1_000_000L)),
+                clamp(data.getDoubleOr(AIR_QUALITY, 100.0D), 0.0D, 100.0D));
     }
 
     public void save(Player player) {
@@ -67,6 +78,7 @@ public final class HumanStatus {
         data.putDouble(EXERTION_LOAD, clamp(exertionLoad, 0.0D, 100.0D));
         data.putString(CURRENT_ACTIVITY, currentActivity == null ? HumanActivityType.IDLE.id : currentActivity.id);
         data.putLong(LAST_ACTIVE_TIME, lastActiveGameTime);
+        data.putDouble(AIR_QUALITY, clamp(airQuality, 0.0D, 100.0D));
     }
 
     public void copyTo(Player player) {
@@ -81,6 +93,7 @@ public final class HumanStatus {
         exertionLoad = 0.0D;
         currentActivity = HumanActivityType.IDLE;
         lastActiveGameTime = -1_000_000L;
+        airQuality = 100.0D;
     }
 
     public boolean hasRecentExertion(long gameTime) {

@@ -4,6 +4,8 @@ import com.xxsx.earthhuman.BodyPart;
 import com.xxsx.earthhuman.EarthHumanConfig;
 import com.xxsx.earthhuman.HumanBodyStatus;
 import com.xxsx.earthhuman.HumanNetwork;
+import com.xxsx.earthhuman.HumanActivityType;
+import com.xxsx.earthhuman.HumanExercise;
 import com.xxsx.earthhuman.HumanStatus;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -72,6 +74,59 @@ public final class EarthHumanApi {
         return new RecoveryResult(fatigueBefore - status.fatigue, healed);
     }
 
+    /**
+     * Lets an optional mod report one server-authoritative custom activity without touching private NBT.
+     * Distance is in blocks for training attribution; loadGain is the activity's immediate load contribution.
+     */
+    public static ActivityResult applyActivity(ServerPlayer player, String activityId,
+                                               double distanceBlocks, double loadGain,
+                                               String... bodyPartIds) {
+        Objects.requireNonNull(player, "player");
+        EarthHumanApiContract.ActivityInput input =
+                EarthHumanApiContract.normalizeActivity(activityId, distanceBlocks, loadGain);
+        if (input == null) {
+            return ActivityResult.rejected();
+        }
+
+        HumanStatus status = HumanStatus.get(player);
+        double oldLoad = status.exertionLoad;
+        double oldFatigue = status.fatigue;
+        status.currentActivity = input.activity();
+        status.exertionLoad = HumanStatus.clamp(
+                status.exertionLoad + input.loadGain() * EarthHumanConfig.fatigueGainMultiplier(),
+                0.0D, 100.0D);
+        if (EarthHumanConfig.fatigueEnabled()) {
+            status.fatigue = HumanStatus.clamp(
+                    status.fatigue + input.loadGain() * 0.35D * EarthHumanConfig.fatigueGainMultiplier(),
+                    0.0D, 100.0D);
+        }
+        status.lastActiveGameTime = player.level().getGameTime();
+
+        double trainingDistance = input.distanceBlocks() * 0.01D;
+        for (BodyPart part : resolveBodyParts(bodyPartIds)) {
+            HumanExercise.applyPassiveUse(player, part, trainingDistance * 0.02D, trainingDistance * 0.04D);
+        }
+        status.save(player);
+        HumanNetwork.sync(player, status);
+        return new ActivityResult(true, input.activity(), status.exertionLoad - oldLoad,
+                status.fatigue - oldFatigue, trainingDistance);
+    }
+
+    public static double airQuality(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        return HumanStatus.get(player).airQuality;
+    }
+
+    public static DetailedSnapshot detailedSnapshot(ServerPlayer player) {
+        Objects.requireNonNull(player, "player");
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        List<PartSnapshot> parts = new java.util.ArrayList<>();
+        for (BodyPart part : BodyPart.values()) {
+            parts.add(new PartSnapshot(part.id, body.health(part), body.maxHealth(part), body.percent(part)));
+        }
+        return new DetailedSnapshot(snapshot(player), HumanStatus.get(player).airQuality, List.copyOf(parts));
+    }
+
     static List<BodyPart> resolveBodyParts(String... bodyPartIds) {
         return EarthHumanApiContract.resolveBodyParts(bodyPartIds);
     }
@@ -80,6 +135,19 @@ public final class EarthHumanApi {
         public boolean changed() {
             return fatigueReduced > 0.01D || bodyHealed > 0.01D;
         }
+    }
+
+    public record ActivityResult(boolean accepted, HumanActivityType activity,
+                                 double loadAdded, double fatigueAdded, double trainingDistance) {
+        public static ActivityResult rejected() {
+            return new ActivityResult(false, HumanActivityType.IDLE, 0.0D, 0.0D, 0.0D);
+        }
+    }
+
+    public record DetailedSnapshot(HumanSnapshot vitals, double airQuality, List<PartSnapshot> bodyParts) {
+    }
+
+    public record PartSnapshot(String id, double health, double maxHealth, double integrity) {
     }
 
     public record HumanSnapshot(double hydration, double bodyTemperature, double fatigue,

@@ -4,7 +4,7 @@ license="All Rights Reserved"
 
 [[mods]]
 modId="earth_human"
-version="0.1.16"
+version="0.1.18"
 displayName="Earth Human"
 description='''
 In-development beta for Minecraft 26.2 + NeoForge 26.2.0.7-beta.

@@ -10,6 +10,7 @@ public record HumanStatusSyncPayload(
         double bodyTemperature,
         double fatigue,
         double exertionLoad,
+        double airQuality,
         int currentActivityId) implements CustomPacketPayload {
     public static final Type<HumanStatusSyncPayload> TYPE =
             new Type<>(EarthHuman.id("human_status_sync"));
@@ -19,6 +20,7 @@ public record HumanStatusSyncPayload(
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::bodyTemperature,
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::fatigue,
             ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::exertionLoad,
+            ByteBufCodecs.DOUBLE.cast(), HumanStatusSyncPayload::airQuality,
             ByteBufCodecs.VAR_INT.cast(), HumanStatusSyncPayload::currentActivityId,
             HumanStatusSyncPayload::new);
 
@@ -28,6 +30,7 @@ public record HumanStatusSyncPayload(
                 status.bodyTemperature,
                 status.fatigue,
                 status.exertionLoad,
+                status.airQuality,
                 status.currentActivity.networkId);
     }
 
