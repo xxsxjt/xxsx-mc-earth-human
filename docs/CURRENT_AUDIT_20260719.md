@@ -64,6 +64,14 @@
   `earth-human-neoforge-26.2-0.1.19.jar.bak-20260719-144747`.
 - The optional Body Health add-on was intentionally not deployed to the normal test instance.
 
+## GitHub prerelease
+
+- Release: `earth-human-neoforge-26.2-v0.1.20`.
+- URL: https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.2-v0.1.20
+- Published assets: the core 0.1.20 jar and optional Body Health 0.1.1 jar.
+- Both exact jar URLs returned `302` to `release-assets.githubusercontent.com`.
+- Both remote downloads matched the verified local SHA256 values above and in the release notes.
+
 ## Residual risk
 
 - NeoForge 26.2.0.7-beta remains a beta target and ModDevGradle reports that it uses
