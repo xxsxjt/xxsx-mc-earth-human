@@ -1,5 +1,6 @@
 package com.xxsx.earthhuman;
 
+import com.xxsx.earthhuman.api.BodyHealthBridgeApi;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
@@ -19,6 +20,8 @@ public final class HumanBodyStatus {
     private static final String LAST_WARN_TIME = PREFIX + "last_warning_game_time";
     private static final String LAST_USE_SPREAD_TIME = PREFIX + "last_use_spread_game_time";
     private static final String LAST_VANILLA_MAX_HEALTH = PREFIX + "last_vanilla_max_health";
+    private static final String LEG_INJURY = PREFIX + "injury.leg";
+    private static final String RIGHT_HAND_INJURY = PREFIX + "injury.right_hand";
     private static final int CURRENT_INIT_MODEL = 5;
     private static final double BASE_VANILLA_HEALTH = 20.0D;
     private static final net.minecraft.resources.Identifier HEAD_HEALTH_LIMIT_ID =
@@ -26,6 +29,8 @@ public final class HumanBodyStatus {
 
     private final double[] health = new double[BodyPart.values().length];
     private double vanillaMaxHealth = BASE_VANILLA_HEALTH;
+    private double legInjury;
+    private double rightHandInjury;
     public long lastWarningGameTime;
     public long lastUseSpreadGameTime;
 
@@ -50,6 +55,8 @@ public final class HumanBodyStatus {
                     : HumanStatus.clamp(status.readCurrentHealth(data, part), 0.0D, status.maxHealth(part));
         }
         status.syncCapacityFromVanillaMax(player);
+        status.legInjury = HumanStatus.clamp(data.getDoubleOr(LEG_INJURY, 0.0D), 0.0D, 1.0D);
+        status.rightHandInjury = HumanStatus.clamp(data.getDoubleOr(RIGHT_HAND_INJURY, 0.0D), 0.0D, 1.0D);
         if (model < CURRENT_INIT_MODEL) {
             status.save(player);
         }
@@ -64,6 +71,8 @@ public final class HumanBodyStatus {
         data.putInt(INIT, 1);
         data.putInt(INIT_MODEL, CURRENT_INIT_MODEL);
         data.putDouble(LAST_VANILLA_MAX_HEALTH, vanillaMaxHealth);
+        data.putDouble(LEG_INJURY, HumanStatus.clamp(legInjury, 0.0D, 1.0D));
+        data.putDouble(RIGHT_HAND_INJURY, HumanStatus.clamp(rightHandInjury, 0.0D, 1.0D));
         for (BodyPart part : BodyPart.values()) {
             data.putDouble(healthKey(part), HumanStatus.clamp(health(part), 0.0D, maxHealth(part)));
         }
@@ -82,6 +91,8 @@ public final class HumanBodyStatus {
         }
         lastWarningGameTime = -1_000_000L;
         lastUseSpreadGameTime = -1_000_000L;
+        legInjury = 0.0D;
+        rightHandInjury = 0.0D;
     }
 
     public void stabilizeAfterDeathRespawn(Player player) {
@@ -159,6 +170,42 @@ public final class HumanBodyStatus {
         return health(part) / maxHealth(part);
     }
 
+    /** 0 means no injury; 1 means a serious leg injury. */
+    public double legInjury() {
+        return legInjury;
+    }
+
+    /** 0 means no injury; 1 means a serious right-hand injury. */
+    public double rightHandInjury() {
+        return rightHandInjury;
+    }
+
+    public boolean hasSpecificInjury() {
+        return legInjury > 0.001D || rightHandInjury > 0.001D;
+    }
+
+    public double damageLegInjury(double amount) {
+        double before = legInjury;
+        legInjury = SpecificInjuryMath.addSeverity(before, amount);
+        return legInjury - before;
+    }
+
+    public double damageRightHandInjury(double amount) {
+        double before = rightHandInjury;
+        rightHandInjury = SpecificInjuryMath.addSeverity(before, amount);
+        return rightHandInjury - before;
+    }
+
+    public boolean recoverSpecificInjuries(double amount) {
+        double recovery = Math.max(0.0D, amount);
+        double beforeLeg = legInjury;
+        double beforeHand = rightHandInjury;
+        legInjury = SpecificInjuryMath.recoverSeverity(legInjury, recovery);
+        rightHandInjury = SpecificInjuryMath.recoverSeverity(rightHandInjury, recovery);
+        return Math.abs(beforeLeg - legInjury) > 0.0001D
+                || Math.abs(beforeHand - rightHandInjury) > 0.0001D;
+    }
+
     public void setHealth(BodyPart part, double value) {
         health[part.ordinal()] = HumanStatus.clamp(value, 0.0D, maxHealth(part));
     }
@@ -190,7 +237,7 @@ public final class HumanBodyStatus {
         syncCapacityFromVanillaMax(player);
         BodyPart part = worstPart(includeHead);
         if (!includeHead && health(part) >= maxHealth(part)) {
-            return false;
+            return recoverSpecificInjuries(Math.max(0.0D, amount) / 4.0D);
         }
         return healPart(player, part, amount);
     }
@@ -199,19 +246,27 @@ public final class HumanBodyStatus {
         syncCapacityFromVanillaMax(player);
         double before = health(part);
         setHealth(part, before + Math.max(0.0D, amount));
+        boolean injuryChanged = false;
+        if (part == BodyPart.LIMBS) {
+            injuryChanged = recoverSpecificInjuries(
+                    Math.max(0.0D, amount) / Math.max(1.0D, maxHealth(part)));
+        }
         if (part == BodyPart.HEAD) {
             syncVanillaFromHead(player);
         }
-        return health(part) > before + 0.01D;
+        return health(part) > before + 0.01D || injuryChanged;
     }
 
     public void ensureHeadHealthLimit(ServerPlayer player) {
+        if (!BodyHealthBridgeApi.active()) {
+            return;
+        }
         syncCapacityFromVanillaMax(player);
         var maxHealth = player.getAttribute(Attributes.MAX_HEALTH);
         if (maxHealth != null && maxHealth.getModifier(HEAD_HEALTH_LIMIT_ID) != null) {
             maxHealth.removeModifier(HEAD_HEALTH_LIMIT_ID);
         }
-        if (EarthHumanConfig.healthBridgeMode() == EarthHumanRules.HealthBridgeMode.HEAD_BAR) {
+        if (BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
             syncVanillaFromHead(player);
         }
     }
@@ -263,7 +318,8 @@ public final class HumanBodyStatus {
     }
 
     public void syncVanillaFromHead(ServerPlayer player) {
-        if (EarthHumanConfig.healthBridgeMode() != EarthHumanRules.HealthBridgeMode.HEAD_BAR) {
+        if (!BodyHealthBridgeApi.active()
+                || BodyHealthBridgeApi.mode() != BodyHealthBridgeApi.Mode.HEAD_BAR) {
             return;
         }
         double ratio = HumanStatus.clamp(percent(BodyPart.HEAD), 0.0D, 1.0D);
@@ -342,13 +398,10 @@ public final class HumanBodyStatus {
         if (!EarthHumanConfig.bodyEffectsEnabled()) {
             return;
         }
-        double limbRatio = percent(BodyPart.LIMBS);
-        if (limbRatio <= 0.01D) {
+        if (legInjury >= 0.75D) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 1, true, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 120, 1, true, false, true));
-        } else if (limbRatio < 0.30D) {
+        } else if (legInjury >= 0.30D) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 0, true, false, true));
-            player.addEffect(new MobEffectInstance(MobEffects.MINING_FATIGUE, 120, 0, true, false, true));
         }
         if (health(BodyPart.TORSO) <= 0.01D || percent(BodyPart.TORSO) < 0.25D) {
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, health(BodyPart.TORSO) <= 0.01D ? 1 : 0, true, false, true));
@@ -370,6 +423,22 @@ public final class HumanBodyStatus {
         }
     }
 
+    public void warnSpecificInjury(ServerPlayer player, String id, double before, double after) {
+        if (player.level().getGameTime() - lastWarningGameTime < 80L) {
+            return;
+        }
+        String key = null;
+        if (after >= 0.75D && before < 0.75D) {
+            key = "message.earth_human.injury." + id + ".serious";
+        } else if (after >= 0.30D && before < 0.30D) {
+            key = "message.earth_human.injury." + id + ".started";
+        }
+        if (key != null) {
+            player.sendSystemMessage(Component.translatable(key));
+            lastWarningGameTime = player.level().getGameTime();
+        }
+    }
+
     public Component describeLine(BodyPart part) {
         double value = health(part);
         return Component.translatable(
@@ -378,6 +447,24 @@ public final class HumanBodyStatus {
                 String.format(java.util.Locale.ROOT, "%.1f", value),
                 String.format(java.util.Locale.ROOT, "%.1f", maxHealth(part)),
                 stateText(part));
+    }
+
+    public Component describeSpecificInjury(String id, double severity) {
+        return Component.translatable(
+                "message.earth_human.body.injury.line",
+                Component.translatable("bodyinjury.earth_human." + id),
+                Math.round(HumanStatus.clamp(1.0D - severity, 0.0D, 1.0D) * 100.0D),
+                injuryStateText(severity));
+    }
+
+    private Component injuryStateText(double severity) {
+        if (severity >= 0.75D) {
+            return Component.translatable("message.earth_human.body.state.critical");
+        }
+        if (severity >= 0.30D) {
+            return Component.translatable("message.earth_human.body.state.injured");
+        }
+        return Component.translatable("message.earth_human.body.state.ok");
     }
 
     private Component stateText(BodyPart part) {

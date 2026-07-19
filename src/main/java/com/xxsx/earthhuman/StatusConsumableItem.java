@@ -177,6 +177,16 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
 
         HumanBodyStatus body = HumanBodyStatus.get(player);
         BodyPart part = body.worstPart(includeHead);
+        if (body.hasSpecificInjury() && body.health(part) >= body.maxHealth(part) - 0.01D) {
+            boolean recovered = body.recoverSpecificInjuries(heal / 4.0D);
+            if (recovered) {
+                body.save(player);
+                HumanNetwork.syncBody(player, body);
+                return Component.translatable(
+                        "message.earth_human.body.injury.treated",
+                        String.format(java.util.Locale.ROOT, "%.0f", (1.0D - Math.max(body.legInjury(), body.rightHandInjury())) * 100.0D));
+            }
+        }
         if (body.health(part) >= body.maxHealth(part) - 0.01D) {
             return null;
         }
@@ -202,7 +212,7 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
         }
         HumanBodyStatus body = HumanBodyStatus.get(player);
         BodyPart part = body.worstPart(includeHead);
-        return body.health(part) < body.maxHealth(part) - 0.01D;
+        return body.health(part) < body.maxHealth(part) - 0.01D || body.hasSpecificInjury();
     }
 
     public record EffectSpec(Holder<MobEffect> effect, int durationTicks, int amplifier) {

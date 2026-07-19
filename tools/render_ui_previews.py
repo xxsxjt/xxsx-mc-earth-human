@@ -13,7 +13,7 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "tmp" / "ui-audit-v2"
-LANG_PATH = ROOT / "src" / "main" / "resources" / "assets" / "earth_human" / "lang" / "zh_cn.json"
+LANG_DIR = ROOT / "src" / "main" / "resources" / "assets" / "earth_human" / "lang"
 TEXTURES = ROOT / "src" / "main" / "resources" / "assets" / "earth_human" / "textures" / "item"
 
 WIDTH = 320
@@ -55,7 +55,11 @@ def load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFo
 FONT = load_font(9)
 FONT_SMALL = load_font(8)
 FONT_BOLD = load_font(9, bold=True)
-LANG = json.loads(LANG_PATH.read_text(encoding="utf-8-sig"))
+LANGS = {
+    language: json.loads((LANG_DIR / f"{language}.json").read_text(encoding="utf-8-sig"))
+    for language in ("zh_cn", "en_us")
+}
+LANG = LANGS["zh_cn"]
 
 
 def tr(key: str, *args: object) -> str:
@@ -78,6 +82,39 @@ def fit(draw: ImageDraw.ImageDraw, text: str, width: int, font: ImageFont.ImageF
     while current and text_width(draw, current + suffix, font) > width:
         current = current[:-1]
     return current + suffix
+
+
+def wrap_lines(draw: ImageDraw.ImageDraw, text: str, width: int, max_lines: int,
+               font: ImageFont.ImageFont = FONT) -> list[str]:
+    lines: list[str] = []
+    remaining = text.strip()
+    while remaining and len(lines) < max_lines:
+        if text_width(draw, remaining, font) <= width:
+            lines.append(remaining)
+            break
+        if len(lines) == max_lines - 1:
+            lines.append(fit(draw, remaining, width, font))
+            break
+        candidate = remaining
+        while candidate and text_width(draw, candidate, font) > width:
+            candidate = candidate[:-1]
+        if not candidate:
+            candidate = remaining[:1]
+        split = candidate.rfind(" ")
+        consumed = len(candidate)
+        if split > len(candidate) // 2:
+            candidate = candidate[:split]
+            consumed = split + 1
+        lines.append(candidate.rstrip())
+        remaining = remaining[consumed:].lstrip()
+    return lines
+
+
+def draw_wrapped_text(draw: ImageDraw.ImageDraw, text: str, x: int, y: int, width: int,
+                      max_lines: int, color: tuple[int, int, int, int],
+                      font: ImageFont.ImageFont = FONT_SMALL) -> None:
+    for index, line in enumerate(wrap_lines(draw, text, width, max_lines, font)):
+        draw.text((x, y + index * 10), line, font=font, fill=color)
 
 
 def world_background() -> Image.Image:
@@ -124,8 +161,9 @@ def draw_header(draw: ImageDraw.ImageDraw, active_tab: int) -> None:
     draw.rectangle((mx + 7, my + 3, mx + 9, my + 13), fill=MEDICAL_WHITE)
     draw.rectangle((mx + 3, my + 7, mx + 13, my + 9), fill=MEDICAL_WHITE)
     draw.text((PANEL_LEFT + 36, PANEL_TOP + 9), tr("screen.earth_human.status.title"), font=FONT_BOLD, fill=MEDICAL_WHITE)
-    subtitle = fit(draw, tr("screen.earth_human.status.subtitle"), 80, FONT_SMALL)
-    draw.text((PANEL_LEFT + 192, PANEL_TOP + 11), subtitle, font=FONT_SMALL, fill=MUTED)
+    subtitle = fit(draw, tr("screen.earth_human.status.subtitle.compact"), 80, FONT_SMALL)
+    draw.text((PANEL_LEFT + PANEL_WIDTH - 14 - text_width(draw, subtitle, FONT_SMALL), PANEL_TOP + 11),
+              subtitle, font=FONT_SMALL, fill=MUTED)
 
     labels = [
         tr("screen.earth_human.status.tab.overview"),
@@ -165,10 +203,11 @@ def body_color(ratio: float) -> tuple[int, int, int, int]:
     return red, green, blue, 255
 
 
-def draw_body_figure(draw: ImageDraw.ImageDraw, x: int, y: int, scale: float = 1.0, values: list[float] | None = None) -> None:
-    values = values or [1.0] * 3
-    if len(values) < 3:
-        values = (values + [1.0] * 3)[:3]
+def draw_body_figure(draw: ImageDraw.ImageDraw, x: int, y: int, scale: float = 1.0,
+                     values: list[float] | None = None) -> None:
+    values = values or [1.0] * 5
+    if len(values) < 5:
+        values = (values + [1.0] * 5)[:5]
     width = round(38 * scale)
     height = round(60 * scale)
     draw.rectangle((x - 2, y - 2, x + width + 1, y + height + 1), fill=(16, 22, 23, 205), outline=(92, 108, 103, 210))
@@ -184,9 +223,10 @@ def draw_body_figure(draw: ImageDraw.ImageDraw, x: int, y: int, scale: float = 1
 
     segment(0, 13, 2, 12, 11)
     segment(1, 10, 15, 18, 24)
-    for args in [(4, 16, 6, 28), (28, 16, 6, 28), (11, 41, 7, 18), (20, 41, 7, 18)]:
-        px, py, pw, ph = args
-        segment(2, px, py, pw, ph)
+    segment(4, 4, 16, 6, 28)
+    segment(2, 28, 16, 6, 28)
+    segment(3, 11, 41, 7, 18)
+    segment(3, 20, 41, 7, 18)
 
 
 def draw_footer(draw: ImageDraw.ImageDraw, tab: int) -> None:
@@ -207,44 +247,55 @@ def screen_base(tab: int) -> tuple[Image.Image, ImageDraw.ImageDraw]:
     return base, draw
 
 
-def render_overview() -> Image.Image:
+def render_overview(*, hydration: float = 84.0, temperature: float = 37.0,
+                    fatigue: float = 38.0, air_quality: float = 76.0,
+                    exertion: float = 46.0, body: list[float] | None = None,
+                    recommendation_key: str = "screen.earth_human.status.recommend.ok") -> Image.Image:
     image, draw = screen_base(0)
+    body = body or [0.95, 0.82, 0.78, 0.88, 0.92]
     draw_heading(draw, "screen.earth_human.status.overview.heading")
     meter_width = 210
     meter_step = 19
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17, meter_width, tr("screen.earth_human.status.hydration"), 0.84, "84%", ACCENT)
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step, meter_width, tr("screen.earth_human.status.temperature"), 0.48, "37.0 C", ACCENT)
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 2, meter_width, tr("screen.earth_human.status.fatigue"), 0.38, "38%", WARNING)
-    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 3, meter_width, tr("screen.earth_human.status.air_quality"), 0.76, "76%", ACCENT)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17, meter_width, tr("screen.earth_human.status.hydration"), hydration / 100.0, f"{round(hydration)}%", ACCENT if hydration >= 55 else WARNING)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step, meter_width, tr("screen.earth_human.status.temperature"), (temperature - 32.0) / 10.5, f"{temperature:.1f} C", ACCENT)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 2, meter_width, tr("screen.earth_human.status.fatigue"), fatigue / 100.0, f"{round(fatigue)}%", WARNING if fatigue >= 35 else ACCENT)
+    draw_meter(draw, CONTENT_LEFT, CONTENT_TOP + 17 + meter_step * 3, meter_width, tr("screen.earth_human.status.air_quality"), air_quality / 100.0, f"{round(air_quality)}%", ACCENT if air_quality >= 55 else DANGER)
     body_x = CONTENT_LEFT + meter_width + 12
     draw.rectangle((body_x, CONTENT_TOP + 15, body_x + 57, CONTENT_TOP + 98), fill=(20, 26, 28, 210), outline=ACCENT_DARK)
     label = tr("screen.earth_human.status.body_summary")
     draw.text((body_x + (58 - text_width(draw, label, FONT_SMALL)) // 2, CONTENT_TOP + 20), label, font=FONT_SMALL, fill=MUTED)
-    draw_body_figure(draw, body_x + 14, CONTENT_TOP + 33, 0.82, [0.95, 0.82, 0.78])
-    activity = tr("screen.earth_human.status.activity_line", tr("activity.earth_human.walking"), 46)
+    draw_body_figure(draw, body_x + 14, CONTENT_TOP + 33, 0.82, body)
+    activity = tr("screen.earth_human.status.activity_line", tr("activity.earth_human.walking"), round(exertion))
     draw.text((CONTENT_LEFT, CONTENT_TOP + 94), fit(draw, activity, meter_width), font=FONT_SMALL, fill=MEDICAL_WHITE)
     draw.rectangle((CONTENT_LEFT, CONTENT_TOP + 106, CONTENT_LEFT + meter_width - 1, CONTENT_TOP + 109), fill=(17, 23, 25, 255))
-    draw.rectangle((CONTENT_LEFT + 1, CONTENT_TOP + 107, CONTENT_LEFT + 96, CONTENT_TOP + 108), fill=WARNING)
+    draw.rectangle((CONTENT_LEFT + 1, CONTENT_TOP + 107,
+                    CONTENT_LEFT + 1 + round((meter_width - 2) * exertion / 100.0), CONTENT_TOP + 108), fill=WARNING)
     note_y = CONTENT_TOP + 112
-    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_RIGHT, note_y + 18), fill=(33, 43, 44, 225))
-    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_LEFT + 3, note_y + 18), fill=ACCENT)
-    draw.text((CONTENT_LEFT + 9, note_y + 5), tr("screen.earth_human.status.recommendation"), font=FONT_SMALL, fill=ACCENT)
-    note = tr("screen.earth_human.status.recommend.exertion")
-    draw.text((CONTENT_LEFT + 82, note_y + 5), fit(draw, note, 198, FONT_SMALL), font=FONT_SMALL, fill=MEDICAL_WHITE)
+    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_RIGHT, note_y + 22), fill=(33, 43, 44, 225))
+    draw.rectangle((CONTENT_LEFT, note_y, CONTENT_LEFT + 3, note_y + 22), fill=ACCENT)
+    draw.text((CONTENT_LEFT + 9, note_y + 5), "!", font=FONT_BOLD, fill=ACCENT)
+    draw_wrapped_text(draw, tr(recommendation_key), CONTENT_LEFT + 22, note_y + 2,
+                      CONTENT_RIGHT - CONTENT_LEFT - 30, 2, MEDICAL_WHITE)
     draw_footer(draw, 0)
     return image
 
 
-def render_body() -> Image.Image:
+def render_body(values: list[float] | None = None) -> Image.Image:
     image, draw = screen_base(1)
+    values = values or [0.63, 0.78, 0.44, 0.52, 0.71]
     draw_heading(draw, "screen.earth_human.status.body.heading")
     figure_width = 74
     figure_height = 114
     draw.rectangle((CONTENT_LEFT, CONTENT_TOP + 20, CONTENT_LEFT + figure_width - 1, CONTENT_TOP + 20 + figure_height - 1),
                    fill=(20, 26, 28, 215), outline=ACCENT_DARK)
-    draw_body_figure(draw, CONTENT_LEFT + 11, CONTENT_TOP + 26, 1.35, [0.63, 0.78, 0.44])
-    parts = ["头部", "躯干", "四肢"]
-    values = [0.63, 0.78, 0.44]
+    draw_body_figure(draw, CONTENT_LEFT + 11, CONTENT_TOP + 26, 1.35, values)
+    hint = tr("screen.earth_human.status.body.figure_hint")
+    fitted_hint = fit(draw, hint, figure_width - 6, FONT_SMALL)
+    draw.text((CONTENT_LEFT + (figure_width - text_width(draw, fitted_hint, FONT_SMALL)) // 2, CONTENT_TOP + 121),
+              fitted_hint, font=FONT_SMALL, fill=MUTED)
+    parts = ["头部", "躯干", "四肢",
+             tr("screen.earth_human.status.body.leg_injury"),
+             tr("screen.earth_human.status.body.right_hand_injury")]
     bars_x = CONTENT_LEFT + figure_width + 12
     for index, (part, value) in enumerate(zip(parts, values)):
         draw_meter(draw, bars_x, CONTENT_TOP + 18 + index * 18, CONTENT_RIGHT - bars_x,
@@ -268,29 +319,55 @@ def load_icon(item_id: str, size: int = 16) -> Image.Image:
         return opened.convert("RGBA").resize((size, size), Image.Resampling.NEAREST)
 
 
-def render_care() -> Image.Image:
+def render_care(*, missing: set[str] | None = None, active: str | None = None,
+                feedback_key: str | None = None) -> Image.Image:
     image, draw = screen_base(2)
+    missing = missing or {"warm"}
     draw_heading(draw, "screen.earth_human.status.care.heading")
     actions = [
-        ("hydrate", tr("care.earth_human.hydrate"), "装满的水壶 · 1.6 秒", True),
-        ("bandage", tr("care.earth_human.bandage"), "无菌绷带 · 2.0 秒", True),
-        ("first_aid", tr("care.earth_human.first_aid"), "基础急救包 · 3.0 秒", True),
-        ("warm", tr("care.earth_human.warm"), "缺少匹配物品", False),
-        ("cool", tr("care.earth_human.cool"), "降温包 · 1.8 秒", True),
+        ("hydrate", tr("care.earth_human.hydrate"), "1.6"),
+        ("bandage", tr("care.earth_human.bandage"), "2.0"),
+        ("first_aid", tr("care.earth_human.first_aid"), "3.0"),
+        ("warm", tr("care.earth_human.warm"), "1.8"),
+        ("cool", tr("care.earth_human.cool"), "1.8"),
     ]
-    for index, (action_id, title, detail, available) in enumerate(actions):
-        row_y = CONTENT_TOP + 27 + index * 20
-        draw.rectangle((CONTENT_LEFT, row_y, CONTENT_RIGHT, row_y + 18), fill=(27, 36, 38, 230))
-        draw.rectangle((CONTENT_LEFT, row_y, CONTENT_LEFT + 2, row_y + 18), fill=ACCENT_DARK if available else (85, 93, 92, 255))
-        draw.rectangle((CONTENT_LEFT + 6, row_y + 1, CONTENT_LEFT + 23, row_y + 18), fill=(17, 23, 25, 255), outline=EDGE)
-        image.alpha_composite(load_icon(CARE_ITEMS[action_id]), (CONTENT_LEFT + 7, row_y + 2))
+    feedback_top = CONTENT_TOP + 17
+    if active:
+        active_title = next(title for action_id, title, _ in actions if action_id == active)
+        feedback = tr("screen.earth_human.status.care.active", active_title, "1.2")
+        feedback_color = ACCENT
+    elif feedback_key:
+        feedback = tr(feedback_key)
+        feedback_color = ACCENT if feedback_key.endswith(".completed") else WARNING
+    else:
+        feedback = tr("screen.earth_human.status.care.idle")
+        feedback_color = MUTED
+    draw.rectangle((CONTENT_LEFT, feedback_top, CONTENT_RIGHT, feedback_top + 20), fill=(33, 43, 44, 225))
+    draw.rectangle((CONTENT_LEFT, feedback_top, CONTENT_LEFT + 3, feedback_top + 20), fill=feedback_color)
+    draw_wrapped_text(draw, feedback, CONTENT_LEFT + 8, feedback_top + 1,
+                      CONTENT_RIGHT - CONTENT_LEFT - 16, 2, feedback_color)
+
+    for index, (action_id, title, duration) in enumerate(actions):
+        available = action_id not in missing
+        is_active = action_id == active
+        row_y = CONTENT_TOP + 39 + index * 19
+        row_fill = (42, 59, 55, 235) if is_active else (27, 36, 38, 230)
+        draw.rectangle((CONTENT_LEFT, row_y, CONTENT_RIGHT, row_y + 17), fill=row_fill)
+        stripe = ACCENT if is_active else (ACCENT_DARK if available else (85, 93, 92, 255))
+        draw.rectangle((CONTENT_LEFT, row_y, CONTENT_LEFT + 2, row_y + 17), fill=stripe)
+        draw.rectangle((CONTENT_LEFT + 6, row_y, CONTENT_LEFT + 23, row_y + 17), fill=(17, 23, 25, 255), outline=EDGE)
+        image.alpha_composite(load_icon(CARE_ITEMS[action_id]), (CONTENT_LEFT + 7, row_y + 1))
         if not available:
-            draw.rectangle((CONTENT_LEFT + 7, row_y + 2, CONTENT_LEFT + 22, row_y + 17), fill=(0, 0, 0, 95))
-        draw.text((CONTENT_LEFT + 29, row_y + 2), fit(draw, title, 145, FONT_SMALL), font=FONT_SMALL,
-                  fill=MEDICAL_WHITE if available else MUTED)
-        draw.text((CONTENT_LEFT + 29, row_y + 11), fit(draw, detail, 145, FONT_SMALL), font=FONT_SMALL,
-                  fill=ACCENT if available else WARNING)
-        draw_button(draw, (CONTENT_RIGHT - 67, row_y + 2, 62, 16), tr("screen.earth_human.status.care.start"), available)
+            draw.rectangle((CONTENT_LEFT + 7, row_y + 1, CONTENT_LEFT + 22, row_y + 16), fill=(0, 0, 0, 95))
+        detail = tr("screen.earth_human.status.care.row.ready", title, duration) if available \
+            else tr("screen.earth_human.status.care.row.missing", title)
+        draw.text((CONTENT_LEFT + 29, row_y + 4), fit(draw, detail, 174, FONT_SMALL), font=FONT_SMALL,
+                  fill=MEDICAL_WHITE if available else WARNING)
+        draw_button(draw, (CONTENT_RIGHT - 67, row_y + 1, 62, 16),
+                    tr("screen.earth_human.status.care.start"), available and active is None)
+        if is_active:
+            draw.rectangle((CONTENT_LEFT + 29, row_y + 14, CONTENT_RIGHT - 72, row_y + 16), fill=(17, 23, 25, 255))
+            draw.rectangle((CONTENT_LEFT + 30, row_y + 15, CONTENT_LEFT + 104, row_y + 15), fill=ACCENT)
     draw_footer(draw, 2)
     return image
 
@@ -346,7 +423,7 @@ def render_hud() -> Image.Image:
     image = world_background()
     draw = ImageDraw.Draw(image)
     draw_vanilla_hud(draw)
-    draw_body_figure(draw, 6, HEIGHT - 60 - 6, 1.0, [0.82, 0.67, 0.44])
+    draw_body_figure(draw, 6, HEIGHT - 60 - 6, 1.0, [0.82, 0.67, 0.88, 0.44, 0.72])
     x = WIDTH // 2 + 10
     y = 191
     widths = [42, 48, 47, 45]
@@ -402,30 +479,42 @@ def render_inventory() -> Image.Image:
             y = top + 91 + row * 18
             draw.rectangle((x, y, x + 16, y + 16), fill=(117, 117, 111, 255), outline=(55, 55, 52, 255))
 
-    values = [0.86, 0.72, 0.45]
+    values = [0.86, 0.72, 0.81, 0.45, 0.63]
     hover_x, hover_y = 6, HEIGHT - 60 - 6
     draw_body_figure(draw, hover_x, hover_y, 1.0, values)
     draw.rectangle((hover_x - 3, hover_y - 3, hover_x + 40, hover_y + 62), outline=ACCENT)
 
-    tooltip_x, tooltip_y = hover_x + 45, hover_y - 4
-    tooltip_width, tooltip_height = 148, 61
+    tooltip_x, tooltip_y = hover_x + 45, hover_y - 31
+    tooltip_width, tooltip_height = 186, 83
     draw.rectangle((tooltip_x, tooltip_y, tooltip_x + tooltip_width, tooltip_y + tooltip_height),
                    fill=(22, 22, 22, 245), outline=(218, 218, 210, 255))
     draw.text((tooltip_x + 5, tooltip_y + 4), tr("screen.earth_human.inventory.summary"),
               font=FONT_BOLD, fill=MEDICAL_WHITE)
-    for index, (part, value) in enumerate(zip(["head", "torso", "limbs"], values)):
+    for index, (part, value) in enumerate(zip(["head", "torso", "limbs"], values[:3])):
         line = tr("screen.earth_human.inventory.part_line",
                   tr(f"bodypart.earth_human.{part}"), round(value * 100))
         draw.text((tooltip_x + 5, tooltip_y + 16 + index * 10), line,
                   font=FONT_SMALL, fill=body_color(value))
-    draw.text((tooltip_x + 5, tooltip_y + 48), tr("screen.earth_human.inventory.click_hint"),
+    injuries = [("leg", values[3]), ("right_hand", values[4])]
+    for index, (part, value) in enumerate(injuries):
+        line = tr("screen.earth_human.inventory.injury_line",
+                  tr(f"bodyinjury.earth_human.{part}"), round(value * 100))
+        draw.text((tooltip_x + 5, tooltip_y + 46 + index * 10), line,
+                  font=FONT_SMALL, fill=body_color(value))
+    draw.text((tooltip_x + 5, tooltip_y + 69), tr("screen.earth_human.inventory.click_hint"),
               font=FONT_SMALL, fill=ACCENT)
     draw.polygon([(hover_x, hover_y), (hover_x + 5, hover_y + 9), (hover_x + 3, hover_y + 4)], fill=(245, 245, 240, 255))
     return image
 
 
-def save_preview(name: str, render: Callable[[], Image.Image]) -> pathlib.Path:
-    image = render()
+def save_preview(name: str, render: Callable[[], Image.Image], language: str = "zh_cn") -> pathlib.Path:
+    global LANG
+    previous = LANG
+    LANG = LANGS[language]
+    try:
+        image = render()
+    finally:
+        LANG = previous
     output = OUT / f"{name}.png"
     output.parent.mkdir(parents=True, exist_ok=True)
     image.resize((WIDTH * SCALE, HEIGHT * SCALE), Image.Resampling.NEAREST).save(output)
@@ -453,9 +542,23 @@ def make_contact_sheet(paths: list[pathlib.Path]) -> pathlib.Path:
 
 def main() -> None:
     previews = [
-        save_preview("overview", render_overview),
-        save_preview("body", render_body),
-        save_preview("care", render_care),
+        save_preview("overview-healthy", lambda: render_overview()),
+        save_preview("overview-leg-injury", lambda: render_overview(
+            body=[0.95, 0.90, 0.92, 0.28, 0.94],
+            recommendation_key="screen.earth_human.status.recommend.leg")),
+        save_preview("overview-hand-injury", lambda: render_overview(
+            body=[0.95, 0.90, 0.92, 0.90, 0.24],
+            recommendation_key="screen.earth_human.status.recommend.hand")),
+        save_preview("body-severe", lambda: render_body([0.42, 0.31, 0.52, 0.08, 0.18])),
+        save_preview("care-ready", lambda: render_care()),
+        save_preview("care-missing-items", lambda: render_care(
+            missing=set(CARE_ITEMS), feedback_key="screen.earth_human.status.care.feedback.missing")),
+        save_preview("care-in-progress", lambda: render_care(active="bandage")),
+        save_preview("care-failed", lambda: render_care(
+            feedback_key="screen.earth_human.status.care.feedback.item_changed")),
+        save_preview("overview-long-en", lambda: render_overview(
+            fatigue=82.0, exertion=88.0,
+            recommendation_key="screen.earth_human.status.recommend.exertion"), "en_us"),
         save_preview("settings", render_settings),
         save_preview("hud", render_hud),
         save_preview("inventory", render_inventory),

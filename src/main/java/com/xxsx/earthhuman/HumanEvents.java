@@ -1,5 +1,6 @@
 package com.xxsx.earthhuman;
 
+import com.xxsx.earthhuman.api.BodyHealthBridgeApi;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.BlockPos;
@@ -95,7 +96,9 @@ public final class HumanEvents {
         }
 
         HumanBodyStatus body = HumanBodyStatus.get(player);
-        bridgePassiveVanillaHealthChange(player, body);
+        if (BodyHealthBridgeApi.active()) {
+            bridgePassiveVanillaHealthChange(player, body);
+        }
         if (EarthHumanConfig.bodyHealthEnabled() && handleJumpTakeoff(player, body)) {
             body.applyFunctionalEffects(player);
             body.save(player);
@@ -106,7 +109,9 @@ public final class HumanEvents {
         }
 
         HumanStatus status = HumanStatus.get(player);
-        body.ensureHeadHealthLimit(player);
+        if (BodyHealthBridgeApi.active()) {
+            body.ensureHeadHealthLimit(player);
+        }
 
         HumanActivitySample activity = HumanActivityTracker.sample(player);
         boolean resting = !activity.hasMovement()
@@ -121,6 +126,10 @@ public final class HumanEvents {
         ArcanaHumanBridge arcana = ArcanaHumanBridge.read(player);
         arcana.applyPassiveBodySupport(player);
         HumanExercise.recover(player, player.isSleeping(), resting && !recentExertion);
+        double injuryRecovery = player.isSleeping() ? 0.015D : (resting ? 0.002D : 0.0D);
+        if (injuryRecovery > 0.0D) {
+            body.recoverSpecificInjuries(injuryRecovery * EarthHumanConfig.recoveryMultiplier());
+        }
 
         if (EarthHumanConfig.hydrationEnabled()) {
             double hydrationLoss = 0.010D + activity.hydrationExtraLoss();
@@ -189,10 +198,13 @@ public final class HumanEvents {
                 || player.isCreative()
                 || player.isSpectator()
                 || !EarthHumanConfig.bodyHealthEnabled()
-                || EarthHumanConfig.healthBridgeMode() != EarthHumanRules.HealthBridgeMode.HEAD_BAR
+                || !BodyHealthBridgeApi.active()
+                || BodyHealthBridgeApi.mode() != BodyHealthBridgeApi.Mode.HEAD_BAR
                 || shouldBypassBodySystem(event.getSource())) {
             return;
         }
+        // NeoForge's Pre value is already reduced by armor and potion modifiers.
+        // The optional bridge routes this final value and must not apply armor twice.
         float damage = event.getNewDamage();
         if (!Float.isFinite(damage) || damage <= 0.0F) {
             return;
@@ -242,7 +254,19 @@ public final class HumanEvents {
         }
 
         HumanBodyStatus body = HumanBodyStatus.get(player);
-        if (EarthHumanConfig.healthBridgeMode() == EarthHumanRules.HealthBridgeMode.HEAD_BAR) {
+        float damage = event.getHealthDamage();
+        if (!Float.isFinite(damage) || damage <= 0.0F) {
+            return;
+        }
+        if (!BodyHealthBridgeApi.active()) {
+            if (HumanInjuryService.applyCoreDamage(player, body, event.getSource(), damage)) {
+                body.applyFunctionalEffects(player);
+                body.save(player);
+                HumanNetwork.syncBody(player, body);
+            }
+            return;
+        }
+        if (BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
             body.pullHeadFromVanilla(player);
             body.save(player);
             HumanNetwork.syncBody(player, body);
@@ -251,11 +275,6 @@ public final class HumanEvents {
         if (shouldBypassBodySystem(event.getSource())) {
             return;
         }
-        float damage = event.getHealthDamage();
-        if (!Float.isFinite(damage) || damage <= 0.0F) {
-            return;
-        }
-
         double headBefore = body.health(BodyPart.HEAD);
         body.pullHeadDamageFromVanilla(player);
         if (isFallLike(event.getSource())) {
@@ -279,6 +298,9 @@ public final class HumanEvents {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.isCreative() || player.isSpectator()) {
             return;
         }
+        if (!BodyHealthBridgeApi.active()) {
+            return;
+        }
         float amount = event.getAmount();
         if (!Float.isFinite(amount) || amount <= 0.0F) {
             return;
@@ -291,7 +313,7 @@ public final class HumanEvents {
                 body.save(player);
                 HumanNetwork.syncBody(player, body);
             }
-            if (EarthHumanConfig.healthBridgeMode() == EarthHumanRules.HealthBridgeMode.HEAD_BAR) {
+            if (BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
                 event.setAmount(0.0F);
                 expectedHealth = player.getHealth();
             }
@@ -306,6 +328,10 @@ public final class HumanEvents {
         HumanBodyStatus body = HumanBodyStatus.get(player);
         if (EarthHumanConfig.bodyHealthEnabled()) {
             body.spreadFromUse(player, BodyPart.LIMBS, 0.18D);
+            if (player.getMainHandItem().isEmpty()
+                    && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)) {
+                HumanInjuryService.applyBareHandHardMining(player, body);
+            }
         }
         if (EarthHumanConfig.airQualityEnabled() && event.getState().is(HumanExposureTags.DUST_SOURCES)) {
             player.getPersistentData().putLong(DUST_EXPOSURE_UNTIL,
@@ -313,7 +339,7 @@ public final class HumanEvents {
         }
         HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.030D, 0.038D);
         if (EarthHumanConfig.bodyEffectsEnabled()) {
-            float multiplier = limbUseSpeedMultiplier(body);
+            float multiplier = HumanInjuryService.rightHandMiningSpeedMultiplier(body);
             if (player.hasEffect(EarthHumanEffects.MUSCLE_STRAIN)) {
                 multiplier *= 0.86F;
             }
@@ -1103,11 +1129,4 @@ public final class HumanEvents {
         status.save(player);
     }
 
-    private static float limbUseSpeedMultiplier(HumanBodyStatus body) {
-        double limbs = body.percent(BodyPart.LIMBS);
-        if (limbs <= 0.01D) return 0.35F;
-        if (limbs < 0.30D) return 0.60F;
-        if (limbs < 0.60D) return 0.82F;
-        return 1.0F;
-    }
 }

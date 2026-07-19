@@ -114,6 +114,8 @@ public final class EarthHumanCommands {
         source.sendSuccess(() -> Component.translatable("message.earth_human.status.body",
                 Component.translatable(worst.translationKey()),
                 String.format(java.util.Locale.ROOT, "%.0f", body.percent(worst) * 100.0D)), false);
+        source.sendSuccess(() -> body.describeSpecificInjury("leg", body.legInjury()), false);
+        source.sendSuccess(() -> body.describeSpecificInjury("right_hand", body.rightHandInjury()), false);
         ArcanaHumanBridge arcana = ArcanaHumanBridge.read(player);
         if (arcana.hasAny()) {
             source.sendSuccess(() -> Component.translatable("message.earth_human.status.arcana",
@@ -158,6 +160,8 @@ public final class EarthHumanCommands {
         for (BodyPart part : BodyPart.values()) {
             source.sendSuccess(() -> body.describeLine(part), false);
         }
+        source.sendSuccess(() -> body.describeSpecificInjury("leg", body.legInjury()), false);
+        source.sendSuccess(() -> body.describeSpecificInjury("right_hand", body.rightHandInjury()), false);
         source.sendSuccess(() -> Component.translatable("message.earth_human.body.hint"), false);
         return 1;
     }

@@ -43,6 +43,8 @@ final class InventoryBodySummary {
                             partLine(body, BodyPart.HEAD),
                             partLine(body, BodyPart.TORSO),
                             partLine(body, BodyPart.LIMBS),
+                            injuryLine("leg", body.legInjury()),
+                            injuryLine("right_hand", body.rightHandInjury()),
                             Component.translatable("screen.earth_human.inventory.click_hint")),
                     event.getMouseX(), event.getMouseY());
         }
@@ -63,5 +65,11 @@ final class InventoryBodySummary {
         double ratio = Math.max(0.0D, Math.min(1.0D, body.value(part)));
         return Component.translatable("screen.earth_human.inventory.part_line",
                 Component.translatable(part.translationKey()), Math.round(ratio * 100.0D));
+    }
+
+    private static Component injuryLine(String id, double severity) {
+        return Component.translatable("screen.earth_human.inventory.injury_line",
+                Component.translatable("bodyinjury.earth_human." + id),
+                Math.round(Math.max(0.0D, Math.min(1.0D, 1.0D - severity)) * 100.0D));
     }
 }

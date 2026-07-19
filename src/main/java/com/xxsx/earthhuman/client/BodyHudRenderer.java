@@ -46,12 +46,14 @@ public final class BodyHudRenderer {
 
         drawSegment(g, x, y, scale, opacity, body.value(BodyPart.HEAD), 13, 2, 12, 11);
         drawSegment(g, x, y, scale, opacity, body.value(BodyPart.TORSO), 10, 15, 18, 24);
-        // Front-facing silhouette: the player's left is on the viewer's right.
+        // Front-facing silhouette: the player's right is on the viewer's left.
         double limbIntegrity = body.value(BodyPart.LIMBS);
-        drawSegment(g, x, y, scale, opacity, limbIntegrity, 4, 16, 6, 28);
+        double rightHandCondition = injuryCondition(body.rightHandInjury());
+        double legCondition = injuryCondition(body.legInjury());
+        drawSegment(g, x, y, scale, opacity, rightHandCondition, 4, 16, 6, 28);
         drawSegment(g, x, y, scale, opacity, limbIntegrity, 28, 16, 6, 28);
-        drawSegment(g, x, y, scale, opacity, limbIntegrity, 11, 41, 7, 18);
-        drawSegment(g, x, y, scale, opacity, limbIntegrity, 20, 41, 7, 18);
+        drawSegment(g, x, y, scale, opacity, legCondition, 11, 41, 7, 18);
+        drawSegment(g, x, y, scale, opacity, legCondition, 20, 41, 7, 18);
     }
 
     private static void drawSegment(GuiGraphicsExtractor g, int originX, int originY, double scale, double opacity,
@@ -93,6 +95,10 @@ public final class BodyHudRenderer {
         int green = (int) Math.round(60.0D + value * 132.0D);
         int blue = (int) Math.round(54.0D + value * 58.0D);
         return withAlpha((red << 16) | (green << 8) | blue, alpha(opacity));
+    }
+
+    private static double injuryCondition(double severity) {
+        return Math.max(0.0D, Math.min(1.0D, 1.0D - severity));
     }
 
     private static int highlight(int color, double opacity) {

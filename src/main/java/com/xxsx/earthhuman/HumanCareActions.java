@@ -190,6 +190,9 @@ public final class HumanCareActions {
     }
 
     private static boolean hasMissingBodyHealth(HumanBodyStatus body, boolean includeHead) {
+        if (body.hasSpecificInjury()) {
+            return true;
+        }
         for (BodyPart part : BodyPart.values()) {
             if ((includeHead || part != BodyPart.HEAD) && body.health(part) < body.maxHealth(part) - 0.01D) {
                 return true;

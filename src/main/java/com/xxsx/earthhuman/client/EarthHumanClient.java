@@ -35,7 +35,7 @@ public final class EarthHumanClient {
     private static final int ROW_HEIGHT = 14;
     private static HumanStatus syncedStatus = new HumanStatus(100.0D, 37.0D, 0.0D, 0);
     private static HumanBodySyncPayload syncedBody = new HumanBodySyncPayload(
-            1.0D, 1.0D, 1.0D);
+            1.0D, 1.0D, 1.0D, 0.0D, 0.0D);
     private static HumanCareStatePayload syncedCareState = HumanCareStatePayload.IDLE;
 
     private EarthHumanClient() {
@@ -197,10 +197,14 @@ public final class EarthHumanClient {
 
     private static void drawCell(GuiGraphicsExtractor graphics, Font font, int x, int y, int width,
                                  double ratio, int color, String label) {
-        graphics.fill(x, y + 8, x + width, y + 10, 0xFF27302F);
-        int fillWidth = Math.max(1, (int) Math.round(width * Math.max(0.0D, Math.min(1.0D, ratio))));
-        graphics.fill(x, y + 8, x + fillWidth, y + 10, color | 0xFF000000);
-        graphics.text(font, label, x + 1, y - 1, 0xFFF0F2EC, false);
+        graphics.fill(x, y - 2, x + width, y + 11, 0xB9161C1D);
+        graphics.outline(x, y - 2, width, 13, 0x884D5A57);
+        graphics.text(font, label, x + 2, y - 1, 0xFFF0F2EC, false);
+        graphics.fill(x + 2, y + 7, x + width - 2, y + 10, 0xFF27302F);
+        double clamped = Math.max(0.0D, Math.min(1.0D, ratio));
+        int fillWidth = Math.max(1, (int) Math.round((width - 4) * clamped));
+        graphics.fill(x + 2, y + 7, x + 2 + fillWidth, y + 10, color | 0xFF000000);
+        graphics.fill(x + 2 + fillWidth, y + 7, x + 3 + fillWidth, y + 10, 0xFFF0F2EC);
     }
 
     private static int hydrationColor(double value) {

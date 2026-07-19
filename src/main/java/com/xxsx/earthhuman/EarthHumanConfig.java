@@ -1,5 +1,6 @@
 package com.xxsx.earthhuman;
 
+import com.xxsx.earthhuman.api.BodyHealthBridgeApi;
 import net.neoforged.neoforge.common.ModConfigSpec;
 
 public final class EarthHumanConfig {
@@ -38,11 +39,10 @@ public final class EarthHumanConfig {
                 .comment("Base tuning preset: casual, standard, realistic, or custom.")
                 .define("preset", "standard", EarthHumanConfig::isPresetValue);
         HEALTH_BRIDGE_MODE = builder
-                .comment("Health bridge: vanilla_compatible, head_bar, or overlay_only.",
-                        "vanilla_compatible preserves vanilla/modded damage and healing as the authority.",
-                        "head_bar routes non-head damage into body parts and is less compatible.",
-                        "overlay_only tracks body state without applying body-part penalties.")
-                .define("health_bridge_mode", "vanilla_compatible", EarthHumanConfig::isBridgeModeValue);
+                .comment("Legacy health bridge setting. The standalone core always keeps vanilla health authoritative.",
+                        "Install Earth Human: Body Health to activate vanilla_compatible or head_bar.",
+                        "overlay_only is the safe core-only mode.")
+                .define("health_bridge_mode", "overlay_only", EarthHumanConfig::isBridgeModeValue);
         builder.pop();
 
         builder.comment("Independent server-authoritative system switches.").push("systems");
@@ -84,6 +84,10 @@ public final class EarthHumanConfig {
     }
 
     public static EarthHumanRules.HealthBridgeMode healthBridgeMode() {
+        return EarthHumanRules.HealthBridgeMode.byId(BodyHealthBridgeApi.mode().id());
+    }
+
+    public static EarthHumanRules.HealthBridgeMode configuredHealthBridgeMode() {
         return EarthHumanRules.HealthBridgeMode.byId(HEALTH_BRIDGE_MODE.get());
     }
 
@@ -93,8 +97,7 @@ public final class EarthHumanConfig {
 
     public static boolean bodyEffectsEnabled() {
         return bodyHealthEnabled()
-                && ENABLE_BODY_EFFECTS.get()
-                && healthBridgeMode() != EarthHumanRules.HealthBridgeMode.OVERLAY_ONLY;
+                && ENABLE_BODY_EFFECTS.get();
     }
 
     public static boolean hydrationEnabled() {

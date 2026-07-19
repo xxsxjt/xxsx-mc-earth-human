@@ -1,7 +1,7 @@
 # 地球：人类兼容接口
 
 目标版本：Minecraft 26.2 / NeoForge 26.2.0.7-beta
-当前实现：v0.1.18
+当前实现：v0.1.20
 
 ## Java API v1
 
@@ -18,6 +18,25 @@ API 缺失或版本不匹配时，调用方应安全关闭联动，不能回退�
 
 正式身体 ID 只有：`head`、`torso`、`limbs`。早期测试版的 `left_arm`、`right_arm`、`left_leg`、`right_leg`、`arms` 和 `legs` 会兼容解析为 `limbs`；调用方应优先使用新 ID。
 
+## 身体血量桥接 API v1
+
+只有需要接管原版生命流程的独立附属才应调用
+`com.xxsx.earthhuman.api.BodyHealthBridgeApi`。普通内容联动仍使用上面的 `EarthHumanApi v1`。
+
+```java
+BodyHealthBridgeApi.ConfigureResult result = BodyHealthBridgeApi.configure(
+        "example_body_health_addon",
+        BodyHealthBridgeApi.Mode.HEAD_BAR);
+```
+
+- `configure(ownerId, mode)`：由一个稳定的附属 ID 申请或重载桥接模式。
+- `state()`：读取当前所有者和模式，便于日志与诊断界面展示。
+- `deactivate(ownerId)`：只有当前所有者可以释放桥接。
+- 同一时间只允许一个附属拥有桥接，第二个附属不能静默覆盖现有模式。
+- `OVERLAY_ONLY` 会释放所有权并恢复核心默认行为。
+
+附属不得引用 `HumanBodyStatus`、`HumanEvents`、`EarthHumanRules` 或玩家私有 NBT；这些均不是稳定 API。
+
 ## 设计边界
 
 - 原版生命、最大生命、护甲、伤害修正、治疗和复活继续作为 Minecraft 生态兼容入口。
@@ -29,15 +48,16 @@ API 缺失或版本不匹配时，调用方应安全关闭联动，不能回退�
 
 ## 生命桥接模式
 
-在 `config/earth_human-common.toml` 的 `gameplay.health_bridge_mode` 中选择：
+核心始终保持 `overlay_only`。安装 `Earth Human: Body Health` 后，才在
+`config/earth_human_body-common.toml` 中选择：
 
 | 模式 | 行为 | 适用场景 |
 |---|---|---|
-| `vanilla_compatible` | 默认。保留原版最终扣血、吸收心、治疗、统计和其他 mod 事件，再把吸收后真实伤害映射到身体部位 | 普通游玩、整合包、未知 mod 环境 |
-| `head_bar` | 原版红心作为头部/立即致死风险，非头部伤害主要进入部位系统 | 更沉浸的单机或明确测试过的模组组合 |
-| `overlay_only` | 保留原版生命流程并记录身体状态，但不施加部位功能惩罚 | 只需要状态显示或兼容排查 |
+| `vanilla_compatible` | 保留原版最终扣血、吸收心、治疗、统计和其他 mod 事件，再记录身体解释 | 希望保留原版生命权威的附属测试 |
+| `head_bar` | 原版红心作为头部/立即致死风险，非头部伤害主要进入部位系统 | 更沉浸且明确测试过的模组组合 |
+| `overlay_only` | 关闭附属桥接，完整恢复核心默认行为 | 兼容排查或临时停用 |
 
-`head_bar` 会主动接管部分伤害，无法保证所有依赖原版最终生命扣除的第三方机制都按原样工作，因此不作为默认值。
+NeoForge 提供给桥接的是已经经过原版护甲、韧性、药水和其他伤害修正后的最终值；附属不会再次计算护甲。`head_bar` 会主动接管部分伤害，无法保证所有依赖原版最终生命扣除的第三方机制都按原样工作。
 
 ## 伤害类型标签
 

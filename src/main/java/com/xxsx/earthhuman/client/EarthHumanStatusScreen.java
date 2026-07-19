@@ -17,6 +17,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
@@ -96,8 +97,11 @@ public class EarthHumanStatusScreen extends Screen {
         drawLedger(g, left + 8, top + 61, left + w - 4, top + h - 35);
         drawMedicalMark(g, left + 13, top + 10);
         g.text(font, Component.translatable("screen.earth_human.status.title"), left + 36, top + 9, MEDICAL_WHITE, false);
-        g.text(font, fit(Component.translatable("screen.earth_human.status.subtitle"), Math.max(80, w - 250)),
-                left + 192, top + 11, MUTED, false);
+        Component subtitle = Component.translatable(compactWidth()
+                ? "screen.earth_human.status.subtitle.compact"
+                : "screen.earth_human.status.subtitle");
+        Component fittedSubtitle = fit(subtitle, Math.max(72, w - 250));
+        g.text(font, fittedSubtitle, left + w - 14 - font.width(fittedSubtitle), top + 11, MUTED, false);
         g.fill(left + 7, top + 58, left + w - 3, top + 60, ACCENT);
 
         switch (tab) {
@@ -163,11 +167,13 @@ public class EarthHumanStatusScreen extends Screen {
     private void addCareButtons() {
         int buttonWidth = compactWidth() ? 62 : 76;
         int buttonHeight = compactHeight() ? 16 : 18;
+        int rowHeight = careRowStep() - 2;
         for (CareAction action : CareAction.values()) {
             int rowY = careRowY(action);
             Button button = addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.care.start"),
                             b -> EarthHumanClient.requestCareAction(action))
-                    .bounds(contentRight() - buttonWidth - 5, rowY + (compactHeight() ? 2 : 5), buttonWidth, buttonHeight)
+                    .bounds(contentRight() - buttonWidth - 5,
+                            rowY + Math.max(1, (rowHeight - buttonHeight) / 2), buttonWidth, buttonHeight)
                     .tooltip(Tooltip.create(Component.translatable(action.descriptionKey())))
                     .build());
             careButtons.put(action, button);
@@ -289,7 +295,7 @@ public class EarthHumanStatusScreen extends Screen {
         if (compactHeight()) {
             drawCompactRecommendation(g, x, activityY + 18, contentWidth(), recommendation);
         } else {
-            int noteY = Math.max(activityY + 23, panelTop() + panelHeight() - 62);
+            int noteY = Math.max(activityY + 23, panelTop() + panelHeight() - 69);
             drawRecommendation(g, x, noteY, contentWidth(), recommendation);
         }
     }
@@ -309,17 +315,28 @@ public class EarthHumanStatusScreen extends Screen {
         double bodyScale = compactHeight() ? 1.35D : 1.75D;
         BodyHudRenderer.draw(g, body, x + (figureWidth - BodyHudRenderer.width(bodyScale)) / 2,
                 y + (compactHeight() ? 26 : 24), bodyScale, 1.0D);
+        g.centeredText(font,
+                fit(Component.translatable("screen.earth_human.status.body.figure_hint"), figureWidth - 8),
+                x + figureWidth / 2, figureTop + figureHeight - 13, MUTED);
 
         int barsX = x + figureWidth + 12;
         int barsWidth = contentRight() - barsX;
         int rowY = y + (compactHeight() ? 18 : 15);
-        int rowStep = compactHeight() ? 18 : Math.max(21, (figureHeight - 1) / BodyPart.values().length);
+        int rowCount = BodyPart.values().length + 2;
+        int rowStep = compactHeight() ? 18 : Math.max(19, (figureHeight - 1) / rowCount);
         for (BodyPart part : BodyPart.values()) {
             double ratio = body.value(part);
             drawMeter(g, barsX, rowY, barsWidth, part.translationKey(), ratio,
                     Math.round(ratio * 100.0D) + "%", bodyColor(ratio));
             rowY += rowStep;
         }
+        double legCondition = Math.max(0.0D, Math.min(1.0D, 1.0D - body.legInjury()));
+        drawMeter(g, barsX, rowY, barsWidth, "screen.earth_human.status.body.leg_injury",
+                legCondition, Math.round(legCondition * 100.0D) + "%", bodyColor(legCondition));
+        rowY += rowStep;
+        double handCondition = Math.max(0.0D, Math.min(1.0D, 1.0D - body.rightHandInjury()));
+        drawMeter(g, barsX, rowY, barsWidth, "screen.earth_human.status.body.right_hand_injury",
+                handCondition, Math.round(handCondition * 100.0D) + "%", bodyColor(handCondition));
     }
 
     private void drawCare(GuiGraphicsExtractor g) {
@@ -327,21 +344,7 @@ public class EarthHumanStatusScreen extends Screen {
         int y = contentTop();
         HumanCareStatePayload careState = EarthHumanClient.syncedCareState();
         drawSectionHeading(g, x, y, "screen.earth_human.status.care.heading");
-
-        if (careState.active()) {
-            CareAction activeAction = CareAction.byId(careState.actionId());
-            Component actionName = activeAction == null
-                    ? Component.translatable("screen.earth_human.status.care.running")
-                    : Component.translatable(activeAction.titleKey());
-            g.text(font, fit(Component.translatable("screen.earth_human.status.care.active", actionName,
-                            String.format(Locale.ROOT, "%.1f", careState.remainingTicks() / 20.0D)), contentWidth()),
-                    x, y + 17, ACCENT, false);
-        } else if (!careState.feedbackKey().isEmpty()) {
-            g.text(font, fit(Component.translatable(careState.feedbackKey()), contentWidth()),
-                    x, y + 17, MEDICAL_WHITE, false);
-        } else if (!compactHeight()) {
-            g.text(font, Component.translatable("screen.earth_human.status.care.idle"), x, y + 17, MUTED, false);
-        }
+        drawCareFeedback(g, x, y, careState);
 
         int buttonWidth = compactWidth() ? 62 : 76;
         for (CareAction action : CareAction.values()) {
@@ -364,14 +367,25 @@ public class EarthHumanStatusScreen extends Screen {
             }
 
             int textX = x + 29;
-            g.text(font, fit(Component.translatable(action.titleKey()), Math.max(35, rowRight - textX)),
-                    textX, rowY + 3, hasItem ? MEDICAL_WHITE : MUTED, false);
-            Component detail = hasItem
-                    ? Component.translatable("screen.earth_human.status.care.ready_timed", inventoryItem.getHoverName(),
-                    String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D))
-                    : Component.translatable("screen.earth_human.status.care.missing");
-            g.text(font, fit(detail, Math.max(35, rowRight - textX)), textX, rowY + 13,
-                    hasItem ? ACCENT : WARNING, false);
+            if (compactHeight()) {
+                Component compactDetail = hasItem
+                        ? Component.translatable("screen.earth_human.status.care.row.ready",
+                        Component.translatable(action.titleKey()),
+                        String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D))
+                        : Component.translatable("screen.earth_human.status.care.row.missing",
+                        Component.translatable(action.titleKey()));
+                g.text(font, fit(compactDetail, Math.max(35, rowRight - textX)), textX, rowY + 4,
+                        hasItem ? MEDICAL_WHITE : WARNING, false);
+            } else {
+                g.text(font, fit(Component.translatable(action.titleKey()), Math.max(35, rowRight - textX)),
+                        textX, rowY + 3, hasItem ? MEDICAL_WHITE : MUTED, false);
+                Component detail = hasItem
+                        ? Component.translatable("screen.earth_human.status.care.ready_timed", inventoryItem.getHoverName(),
+                        String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D))
+                        : Component.translatable("screen.earth_human.status.care.missing");
+                g.text(font, fit(detail, Math.max(35, rowRight - textX)), textX, rowY + 14,
+                        hasItem ? ACCENT : WARNING, false);
+            }
 
             if (isActive) {
                 double progress = 1.0D - careState.remainingTicks() / (double) Math.max(1, careState.totalTicks());
@@ -433,18 +447,99 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private void drawRecommendation(GuiGraphicsExtractor g, int x, int y, int width, Component recommendation) {
-        g.fill(x, y, x + width, y + 29, 0xD0212B2C);
-        g.fill(x, y, x + 4, y + 29, ACCENT);
+        g.fill(x, y, x + width, y + 36, 0xD0212B2C);
+        g.fill(x, y, x + 4, y + 36, ACCENT);
         g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 9, y + 4, ACCENT, false);
-        g.text(font, fit(recommendation, width - 18), x + 9, y + 16, MEDICAL_WHITE, false);
+        drawWrappedText(g, recommendation, x + 9, y + 15, width - 18, 2, MEDICAL_WHITE);
     }
 
     private void drawCompactRecommendation(GuiGraphicsExtractor g, int x, int y, int width,
-                                            Component recommendation) {
-        g.fill(x, y, x + width, y + 18, 0xD0212B2C);
-        g.fill(x, y, x + 4, y + 18, ACCENT);
-        g.text(font, Component.translatable("screen.earth_human.status.recommendation"), x + 9, y + 5, ACCENT, false);
-        g.text(font, fit(recommendation, width - 92), x + 82, y + 5, MEDICAL_WHITE, false);
+                                             Component recommendation) {
+        g.fill(x, y, x + width, y + 22, 0xD0212B2C);
+        g.fill(x, y, x + 4, y + 22, ACCENT);
+        g.centeredText(font, Component.literal("!"), x + 12, y + 7, ACCENT);
+        drawWrappedText(g, recommendation, x + 22, y + 2, width - 30, 2, MEDICAL_WHITE);
+    }
+
+    private void drawCareFeedback(GuiGraphicsExtractor g, int x, int y, HumanCareStatePayload careState) {
+        int top = y + 17;
+        int boxHeight = compactHeight() ? 20 : 26;
+        Component message;
+        int color;
+        if (careState.active()) {
+            CareAction activeAction = CareAction.byId(careState.actionId());
+            Component actionName = activeAction == null
+                    ? Component.translatable("screen.earth_human.status.care.running")
+                    : Component.translatable(activeAction.titleKey());
+            message = Component.translatable("screen.earth_human.status.care.active", actionName,
+                    String.format(Locale.ROOT, "%.1f", careState.remainingTicks() / 20.0D));
+            color = ACCENT;
+        } else if (!careState.feedbackKey().isEmpty()) {
+            message = Component.translatable(careState.feedbackKey());
+            color = careFeedbackColor(careState.feedbackKey());
+        } else {
+            message = Component.translatable("screen.earth_human.status.care.idle");
+            color = MUTED;
+        }
+        g.fill(x, top, contentRight(), top + boxHeight, 0xC0212B2C);
+        g.fill(x, top, x + 3, top + boxHeight, color);
+        drawWrappedText(g, message, x + 8, top + (compactHeight() ? 1 : 3),
+                contentWidth() - 16, 2, color);
+    }
+
+    private int careFeedbackColor(String feedbackKey) {
+        if (feedbackKey.endsWith(".completed")) {
+            return ACCENT;
+        }
+        if (feedbackKey.endsWith(".cancelled")) {
+            return MUTED;
+        }
+        return WARNING;
+    }
+
+    private void drawWrappedText(GuiGraphicsExtractor g, Component text, int x, int y, int maxWidth,
+                                 int maxLines, int color) {
+        List<String> lines = wrapPlain(text, maxWidth, maxLines);
+        for (int index = 0; index < lines.size(); index++) {
+            g.text(font, lines.get(index), x, y + index * 10, color, false);
+        }
+    }
+
+    private List<String> wrapPlain(Component text, int maxWidth, int maxLines) {
+        List<String> lines = new ArrayList<>();
+        String remaining = text.getString().strip();
+        while (!remaining.isEmpty() && lines.size() < maxLines) {
+            if (font.width(remaining) <= maxWidth) {
+                lines.add(remaining);
+                break;
+            }
+            if (lines.size() == maxLines - 1) {
+                lines.add(fitPlain(remaining, maxWidth));
+                break;
+            }
+            String candidate = font.plainSubstrByWidth(remaining, maxWidth);
+            if (candidate.isEmpty()) {
+                candidate = remaining.substring(0, 1);
+            }
+            int consumed = candidate.length();
+            int wordBreak = candidate.lastIndexOf(' ');
+            if (wordBreak > candidate.length() / 2) {
+                candidate = candidate.substring(0, wordBreak);
+                consumed = wordBreak + 1;
+            }
+            lines.add(candidate.stripTrailing());
+            remaining = remaining.substring(Math.min(consumed, remaining.length())).stripLeading();
+        }
+        return lines;
+    }
+
+    private String fitPlain(String text, int maxWidth) {
+        if (font.width(text) <= maxWidth) {
+            return text;
+        }
+        String suffix = "...";
+        int allowed = Math.max(1, maxWidth - font.width(suffix));
+        return font.plainSubstrByWidth(text, allowed).stripTrailing() + suffix;
     }
 
     private void drawLedger(GuiGraphicsExtractor g, int left, int top, int right, int bottom) {
@@ -477,7 +572,15 @@ public class EarthHumanStatusScreen extends Screen {
         for (BodyPart part : BodyPart.values()) {
             worstBody = Math.min(worstBody, body.value(part));
         }
-        if (worstBody < 0.35D) return Component.translatable("screen.earth_human.status.recommend.body");
+        if (body.legInjury() >= 0.30D) {
+            return Component.translatable("screen.earth_human.status.recommend.leg");
+        }
+        if (body.rightHandInjury() >= 0.30D) {
+            return Component.translatable("screen.earth_human.status.recommend.hand");
+        }
+        if (worstBody < 0.70D) {
+            return Component.translatable("screen.earth_human.status.recommend.body");
+        }
         if (status.hydration < 35.0D) return Component.translatable("screen.earth_human.status.recommend.hydration");
         if (status.fatigue > 70.0D) return Component.translatable("screen.earth_human.status.recommend.fatigue");
         if (status.exertionLoad > 70.0D) return Component.translatable("screen.earth_human.status.recommend.exertion");
@@ -511,20 +614,15 @@ public class EarthHumanStatusScreen extends Screen {
     }
 
     private Component fit(Component text, int maxWidth) {
-        if (font.width(text) <= maxWidth) {
-            return text;
-        }
-        String suffix = "...";
-        int allowed = Math.max(1, maxWidth - font.width(suffix));
-        return Component.literal(font.plainSubstrByWidth(text.getString(), allowed) + suffix);
+        return Component.literal(fitPlain(text.getString(), maxWidth));
     }
 
     private int careRowY(CareAction action) {
-        return contentTop() + (compactHeight() ? 27 : 32) + action.ordinal() * careRowStep();
+        return contentTop() + (compactHeight() ? 39 : 47) + action.ordinal() * careRowStep();
     }
 
     private int careRowStep() {
-        return compactHeight() ? 20 : 29;
+        return compactHeight() ? 19 : 26;
     }
 
     private int panelWidth() {

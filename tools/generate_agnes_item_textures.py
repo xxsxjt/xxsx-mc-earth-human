@@ -15,6 +15,7 @@ import time
 import urllib.parse
 
 import requests
+import numpy as np
 from PIL import Image, ImageDraw
 
 
@@ -92,6 +93,20 @@ def remove_border_background(source: Image.Image) -> Image.Image:
     green = any(g > 150 and g > r * 1.45 and g > b * 1.45 for r, g, b, _a in corners)
     average = tuple(sum(pixel[channel] for pixel in corners) // 4 for channel in range(3))
 
+    if magenta or green:
+        data = np.array(image, dtype=np.uint8, copy=True)
+        rgb = data[:, :, :3].astype(np.int16)
+        red, green_channel, blue = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
+        if magenta:
+            mask = ((red > 125) & (blue > 125)
+                    & (green_channel * 100 < np.minimum(red, blue) * 76))
+        else:
+            mask = ((green_channel > 125)
+                    & (green_channel * 100 > red * 132)
+                    & (green_channel * 100 > blue * 132))
+        data[:, :, 3][mask] = 0
+        return Image.fromarray(data, "RGBA")
+
     def is_background(x: int, y: int) -> bool:
         r, g, b, _a = pixels[x, y]
         if magenta:
@@ -126,12 +141,6 @@ def remove_border_background(source: Image.Image) -> Image.Image:
     for x, y in visited:
         r, g, b, _a = pixels[x, y]
         pixels[x, y] = (r, g, b, 0)
-    if magenta:
-        for y in range(height):
-            for x in range(width):
-                r, g, b, _a = pixels[x, y]
-                if r > 125 and b > 125 and g < min(r, b) * 0.76:
-                    pixels[x, y] = (r, g, b, 0)
     return image
 
 
@@ -148,7 +157,15 @@ def make_icon(raw: pathlib.Path, final: pathlib.Path, size: int) -> None:
     padded = Image.new("RGBA", (side + padding * 2, side + padding * 2), (0, 0, 0, 0))
     padded.alpha_composite(canvas, (padding, padding))
     final.parent.mkdir(parents=True, exist_ok=True)
-    padded.resize((size, size), Image.Resampling.LANCZOS).save(final)
+    reduced = padded.resize((size, size), Image.Resampling.BOX)
+    reduced = reduced.quantize(
+        colors=64,
+        method=Image.Quantize.FASTOCTREE,
+        dither=Image.Dither.NONE,
+    ).convert("RGBA")
+    alpha = reduced.getchannel("A").point(lambda value: 255 if value >= 96 else 0)
+    reduced.putalpha(alpha)
+    reduced.save(final)
 
 
 def make_contact_sheet(jobs: list[dict[str, str]], final_dir: pathlib.Path, output: pathlib.Path) -> None:
