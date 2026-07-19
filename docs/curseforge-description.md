@@ -1,5 +1,12 @@
 # Earth Human
 
+> **PREVIEW / TEST BUILD ONLY**
+>
+> Earth Human is incomplete. This build is published only for early preview,
+> compatibility testing, and bug reports. Do not use it in important or long-term
+> worlds without backups. Features, balance, saves, APIs, and interfaces may change
+> or be removed without migration support.
+
 Earth Human is an independent Minecraft mod that adds a realistic but approachable human body, health, activity, and environmental survival layer. It is designed to remain understandable for players who do not know technical systems while preserving compatibility with vanilla health, armor, healing, death, and other mods.
 
 ## Current Features
@@ -32,7 +39,7 @@ These integrations are optional. No sibling mod is a required dependency.
 
 ## Development Status
 
-This project is under active development. Current files are beta builds intended for testing. Saves, balance, compatibility APIs, and client interfaces may change between versions.
+This project is under active development. Current files are incomplete beta previews, not finished gameplay releases. Saves, balance, compatibility APIs, and client interfaces may change between versions.
 
 The current build has passed automated tests, resource validation, core-only and core-plus-add-on dedicated-server startup checks, and a clean client resource-load check. Manual gameplay testing remains separate from those automated checks.
 

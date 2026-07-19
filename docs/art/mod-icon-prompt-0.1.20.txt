@@ -1,0 +1,13 @@
+Create a polished square brand icon for the Minecraft mod Earth Human. This must be a
+distinct mod identity, never an in-game item icon. Center a clear blocky human silhouette
+whose head, torso, arms, and legs have subtle health-status segmentation, integrated with
+a blue-green Earth globe or geological cross-section. Theme: realistic but approachable
+human physiology, survival, exercise, health, and environmental adaptation. Modern
+scientific field-guide feeling, not medical horror, not cyberpunk, not fantasy, not
+industrial machinery. Refined Minecraft-compatible pixel art with deliberate
+high-resolution pixel clusters, clean hard edges, strong silhouette, limited detail, and
+readability at 64 by 64. Use natural earth blue and green, warm amber skin and status
+highlights, charcoal outlines, restrained healthy green-to-amber accents, and a dark
+neutral background with a simple circular Earth shape. No words, letters, numbers,
+watermark, red medical cross, UI frame, inventory slot, bottle, bandage, tool, or
+standalone item. Use a 1:1 square composition suitable for a CurseForge project icon.

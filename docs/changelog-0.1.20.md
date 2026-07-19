@@ -1,5 +1,11 @@
 # Earth Human 0.1.20 - in-development test build
 
+> **PREVIEW / TEST BUILD ONLY**
+>
+> This incomplete build is published only for early preview, compatibility testing,
+> and bug reports. Back up worlds before testing. Features, balance, saves, APIs, and
+> interfaces may change or be removed without migration support.
+
 ## Artifacts
 
 | File | Mod | Target | Required |
@@ -9,6 +15,9 @@
 
 Install the core jar for normal play. Install the Body Health add-on only when split
 body health is wanted; it deliberately changes ordinary combat assumptions.
+
+The CurseForge core project distributes only the core jar in this upload. The optional
+Body Health add-on remains a separate artifact and is not bundled into the core file.
 
 - Restored vanilla-compatible combat in the standalone core. Normal melee, projectiles,
   explosions, armor, absorption, healing and death are no longer routed through split health.
