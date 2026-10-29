@@ -43,3 +43,21 @@
   acceptance is not being reported as public availability.
 - The standalone project icon is prepared locally. Replacing the project logo is an
   Authors-editor action and is not performed by the file Upload API.
+
+## Upload credential
+
+- The Upload API token lives in the shared local vault (`D:/Users/xxsx/AppData/Local/
+  RuntimeData`) under alias `curseforge_codex_api_token`. Read it only through that
+  vault's local resolver and send it only in the `X-Api-Token` header; never print it,
+  put it in a URL, or log it.
+- Recorded state as of 2026-10-29: imported through DPAPI, no existing entry
+  overwritten, decryptability re-verified by the vault owner, marked unused. No
+  CurseForge endpoint and no operation allowlist are confirmed yet, so no request has
+  been made with it. Do not attempt an upload until the owner confirms both.
+- A separate 2026-10-29 record in `mc-agent/memory/curseforge-authors-upload.md` says
+  the stored value was rejected (`403 Invalid API token provided`) when tried against
+  the CurseForge versions endpoint. That contradicts "unused" and is unresolved here:
+  regenerate the token in the Authors API-token settings before any upload, and treat
+  the two records as one open question for the owner, not as permission to retry.
+- The per-key status is kept only in the vault's own metadata; this note is a pointer,
+  not a second copy.
