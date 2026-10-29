@@ -1,6 +1,6 @@
 # 地球：人类兼容接口
 
-目标版本：Minecraft 26.2 / NeoForge 26.2.0.93
+目标版本：Minecraft 26.1.2 / NeoForge 26.1.2.124（`main` 分支为 Minecraft 26.2 / NeoForge 26.2.0.93）
 当前实现：v0.1.20
 
 ## Java API v1
