@@ -18,22 +18,20 @@ final class InventoryBodySummary {
     }
 
     static void render(ScreenEvent.Render.Foreground event, HumanBodySyncPayload body) {
-        if (!(event.getScreen() instanceof InventoryScreen screen)
+        if (!(event.getScreen() instanceof InventoryScreen)
                 || !HumanHudClientConfig.showBodyHud()) {
             return;
         }
 
+        // Posted after the container's leftPos/topPos translation is popped: draw in absolute GUI coordinates.
         GuiGraphicsExtractor graphics = event.getGuiGraphics();
         BodyHudRenderer.Placement placement = placement();
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(-screen.getGuiLeft(), -screen.getGuiTop());
         BodyHudRenderer.draw(graphics, body, placement.x(), placement.y(),
                 HumanHudClientConfig.bodyHudScale(), HumanHudClientConfig.bodyHudOpacity());
         if (placement.contains(event.getMouseX(), event.getMouseY())) {
             graphics.outline(placement.x() - 3, placement.y() - 3,
                     placement.width() + 6, placement.height() + 6, 0xFF7BB69F);
         }
-        graphics.pose().popMatrix();
 
         if (placement.contains(event.getMouseX(), event.getMouseY())) {
             Font font = Minecraft.getInstance().font;
