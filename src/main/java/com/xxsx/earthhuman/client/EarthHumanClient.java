@@ -21,7 +21,6 @@ import net.minecraft.network.chat.Component;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
-import net.neoforged.neoforge.client.event.ContainerScreenEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
@@ -71,7 +70,7 @@ public final class EarthHumanClient {
         }
     }
 
-    private static void onContainerForeground(ContainerScreenEvent.Render.Foreground event) {
+    private static void onContainerForeground(ScreenEvent.Render.Foreground event) {
         InventoryBodySummary.render(event, syncedBody);
     }
 

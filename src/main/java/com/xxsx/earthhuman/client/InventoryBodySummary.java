@@ -8,7 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
-import net.neoforged.neoforge.client.event.ContainerScreenEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
 
 import java.util.List;
 
@@ -17,9 +17,8 @@ final class InventoryBodySummary {
     private InventoryBodySummary() {
     }
 
-    @SuppressWarnings("removal")
-    static void render(ContainerScreenEvent.Render.Foreground event, HumanBodySyncPayload body) {
-        if (!(event.getContainerScreen() instanceof InventoryScreen screen)
+    static void render(ScreenEvent.Render.Foreground event, HumanBodySyncPayload body) {
+        if (!(event.getScreen() instanceof InventoryScreen screen)
                 || !HumanHudClientConfig.showBodyHud()) {
             return;
         }
