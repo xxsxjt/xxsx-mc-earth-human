@@ -102,7 +102,7 @@ public final class EarthHumanClient {
     }
 
     private static void handleOpenGuide(HumanOpenGuidePayload payload, IPayloadContext context) {
-        context.enqueueWork(() -> Minecraft.getInstance().gui.setScreen(new EarthHumanGuideScreen(null)));
+        context.enqueueWork(() -> Minecraft.getInstance().setScreen(new EarthHumanGuideScreen(null)));
     }
 
     private static void handleCareState(HumanCareStatePayload payload, IPayloadContext context) {
@@ -112,7 +112,7 @@ public final class EarthHumanClient {
     private static void renderBodyStatus(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker deltaTracker) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (player == null || minecraft.gameMode == null || minecraft.gui.hud.isHidden() || !minecraft.gameMode.canHurtPlayer()) {
+        if (player == null || minecraft.gameMode == null || minecraft.options.hideGui || !minecraft.gameMode.canHurtPlayer()) {
             return;
         }
         if (player.isCreative() || player.isSpectator()) {
@@ -127,7 +127,7 @@ public final class EarthHumanClient {
         }
 
         int x = graphics.guiWidth() / 2 + 10;
-        int y = graphics.guiHeight() - minecraft.gui.hud.rightHeight;
+        int y = graphics.guiHeight() - minecraft.gui.rightHeight;
 
         int firstWidth = 42;
         int secondWidth = 48;
@@ -152,7 +152,7 @@ public final class EarthHumanClient {
                 status.airQuality / 100.0D, airQualityColor(status.airQuality),
                 hudLabel("hud.earth_human.air_quality.short", status.airQuality, false));
 
-        minecraft.gui.hud.rightHeight += compact ? ROW_HEIGHT * 2 : ROW_HEIGHT;
+        minecraft.gui.rightHeight += compact ? ROW_HEIGHT * 2 : ROW_HEIGHT;
     }
 
     public static void openSettingsScreen() {
@@ -161,7 +161,7 @@ public final class EarthHumanClient {
 
     public static void openStatusScreen(int initialTab) {
         Minecraft minecraft = Minecraft.getInstance();
-        minecraft.gui.setScreen(new EarthHumanStatusScreen(null, initialTab));
+        minecraft.setScreen(new EarthHumanStatusScreen(null, initialTab));
     }
 
     static HumanStatus syncedStatus() {

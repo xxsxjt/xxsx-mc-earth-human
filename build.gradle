@@ -5,14 +5,14 @@ plugins {
 
 version = '0.1.20'
 group = 'com.xxsx.earthhuman'
-base.archivesName = 'earth-human-neoforge-26.2'
+base.archivesName = 'earth-human-neoforge-26.1.2'
 def clientRunDirectory = providers.gradleProperty('clientRunDirectory').orElse('runs/client')
 def serverRunDirectory = providers.gradleProperty('serverRunDirectory').orElse('runs/server')
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 
 neoForge {
-    version = '26.2.0.93'
+    version = '26.1.2.124'
 
     runs {
         client {

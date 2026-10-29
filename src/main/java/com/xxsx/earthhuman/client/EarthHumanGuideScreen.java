@@ -41,7 +41,7 @@ public final class EarthHumanGuideScreen extends Screen {
                 .bounds(left + 12, bottom - 27, 60, 18)
                 .build());
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.guide.open_status"), button ->
-                        Minecraft.getInstance().gui.setScreen(new EarthHumanStatusScreen(this, EarthHumanStatusScreen.TAB_OVERVIEW)))
+                        Minecraft.getInstance().setScreen(new EarthHumanStatusScreen(this, EarthHumanStatusScreen.TAB_OVERVIEW)))
                 .bounds(left + (width - 112) / 2, bottom - 27, 112, 18)
                 .build());
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.guide.next"), button -> changePage(1))
@@ -88,7 +88,7 @@ public final class EarthHumanGuideScreen extends Screen {
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().gui.setScreen(parent);
+        Minecraft.getInstance().setScreen(parent);
     }
 
     private void changePage(int delta) {

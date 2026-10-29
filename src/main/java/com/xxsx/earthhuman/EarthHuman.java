@@ -41,7 +41,7 @@ public class EarthHuman {
         if (FMLEnvironment.getDist() == Dist.CLIENT) {
             EarthHumanClient.register(modBus, modContainer);
         }
-        LOGGER.info("[Earth Human] NeoForge 26.2 module loaded");
+        LOGGER.info("[Earth Human] NeoForge 26.1.2 module loaded");
     }
 
     public static Identifier id(String path) {

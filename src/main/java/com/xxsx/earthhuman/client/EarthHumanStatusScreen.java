@@ -121,7 +121,7 @@ public class EarthHumanStatusScreen extends Screen {
     @Override
     public void onClose() {
         HumanHudClientConfig.save();
-        Minecraft.getInstance().gui.setScreen(parent);
+        Minecraft.getInstance().setScreen(parent);
     }
 
     private void addTabButtons() {

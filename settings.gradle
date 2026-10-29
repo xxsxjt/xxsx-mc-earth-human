@@ -5,4 +5,4 @@ pluginManagement {
     }
 }
 
-rootProject.name = 'earth-human-neoforge-26.2'
+rootProject.name = 'earth-human-neoforge-26.1.2'
