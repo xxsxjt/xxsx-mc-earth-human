@@ -59,9 +59,18 @@
   headers are different auth schemes for different products and are not interchangeable;
   a `403` there says nothing about the token's validity for Authors. Neither probe
   touched this project (`1615063`).
-- No upload has been attempted. `POST https://minecraft.curseforge.com/api/projects/
-  1615063/uploadFile` is the real submission path and remains unverified, so this
-  token's upload permission is still an open question.
+- The upload path itself is separately blocked: every `POST` to
+  `minecraft.curseforge.com` returns `403` with a Cloudflare JS challenge page, including
+  `POST /api/game/versions`, so only `GET` reaches the API. A bogus token answers
+  `400 errorCode 3` (malformed) and a real-but-unauthorized one `403 errorCode 5100`
+  (no permission); those are different failures and must not be reported as "invalid
+  token". `mc-agent/memory/curseforge-authors-upload.md` records the working fallback:
+  drive the authenticated Authors page in a browser session, which is not challenged.
+- No upload has been attempted for this project (`1615063`). `POST https://
+  minecraft.curseforge.com/api/projects/1615063/uploadFile` is the real submission path
+  and is unreachable while the Cloudflare challenge stands, so neither the token's upload
+  permission nor a 0.1.20 re-submission is verified. Uploads recorded on 2026-10-29 for
+  other projects went through the browser-session fallback, not this API path.
 - `node scripts/publish-curseforge.cjs --dry-run` in the Temple of Nihility repo (its
   project is `1616748`) exits `2` on a `401` from `https://authors.curseforge.com/_api/
   project-files/1616748/create-project-file-form-data` and uploads nothing. That
@@ -71,11 +80,9 @@
 - Vault metadata for the alias now reads `validated-authors-readonly` with an allowlist
   limited to the probed read-only endpoints. Do not widen the allowlist or attempt an
   upload without the owner confirming the target project and operation scope.
-- `mc-agent/memory/curseforge-authors-upload.md` (written 03:17 local on 2026-10-29)
-  records the value that was in the vault at that moment as rejected by this endpoint
-  (`403 Invalid API token provided`). The value was replaced and re-probed at 03:50 the
-  same day. That line therefore describes the superseded value; treat the vault
-  metadata as authoritative and do not reuse the line as evidence about the current
-  token.
+- `mc-agent/memory/curseforge-authors-upload.md` is the durable write-up of this boundary
+  (endpoint table, error-code meanings, the browser-session fallback, and the 2026-10-29
+  eight-jar record). It supersedes any earlier note here that treated the token as
+  unused or as invalid.
 - The per-key status is kept only in the vault's own metadata; this note is a pointer,
   not a second copy.
