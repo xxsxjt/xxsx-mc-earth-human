@@ -86,3 +86,22 @@
   unused or as invalid.
 - The per-key status is kept only in the vault's own metadata; this note is a pointer,
   not a second copy.
+
+## 26.1.2 file submission (2026-10-29)
+
+The Upload API path is still blocked, so the 26.1.2 build was submitted through the
+authenticated Authors page in Orca's browser, following the fallback recorded in
+`mc-agent/memory/curseforge-authors-upload.md`.
+
+- File ID: `9363344`
+- File: `earth-human-neoforge-26.1.2-0.1.20.jar`, 277,937 B
+- SHA-256: `BCA36ACB1A2B7F756AB818D4BE231EE0F3E8FE7131A36D85E032B3036910CA7B`
+- Game versions: 26.1.2, Java 25, NeoForge, Client, Server
+- Release type: Beta; manual release enabled
+- Changelog: `docs/changelog-0.1.20-26.1.2.md`
+- Status: `21` - uploaded and approved, but held for manual release. Not public.
+- Public URL while held: `https://edge.forgecdn.net/files/9363/344/earth-human-neoforge-26.1.2-0.1.20.jar`
+  exists on the CDN but the project page does not list it.
+
+Next step is the manual release action ("Publish file" on the row, or "Save & Publish"
+on the file page), which has not been taken.
