@@ -8,7 +8,7 @@
 - `地球：人类`：复刻真实人体、生存压力、环境影响、健康与生活系统。
 - `Earth Online: Magic` 与 `地球 Online：玄幻`：提供可选超凡路线，并通过 `earth_online_arcana.*` 向人物系统提供适应加成。
 
-当前第一版目标为 MC 26.2 / NeoForge 26.2.0.7-beta，可独立运行，也会消费 `Earth on Minecraft` 的饮水与后续环境角色接口。
+当前第一版目标为 MC 26.2 / NeoForge 26.2.0.93，可独立运行，也会消费 `Earth on Minecraft` 的饮水与后续环境角色接口。
 
 详细初版方案见 [docs/initial-plan.md](docs/initial-plan.md)。
 
