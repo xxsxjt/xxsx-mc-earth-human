@@ -314,5 +314,11 @@
   "screen.earth_human.settings.size.plus": "身体放大",
   "screen.earth_human.settings.opacity.minus": "更透明",
   "screen.earth_human.settings.opacity.plus": "更清晰",
-  "screen.earth_human.settings.current_values": "身体大小 %s%% · 透明度 %s%%"
+  "screen.earth_human.settings.current_values": "身体大小 %s%% · 透明度 %s%%",
+  "block.earth_human.resistance_band": "简易阻力带",
+  "block.earth_human.training_mat": "训练垫",
+  "block.earth_human.simple_dumbbell": "简易哑铃",
+  "message.earth_human.training.station_started": "§a开始在器材上做%s。留在附近 %s 秒，动作期间视角切到第三人称。",
+  "message.earth_human.training.station_busy": "§e你已经在使用一件器材了。",
+  "message.earth_human.training.station_left": "§e动作中断：你离开了器材。"
 }

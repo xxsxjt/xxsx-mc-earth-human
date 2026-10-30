@@ -6,6 +6,7 @@ import com.xxsx.earthhuman.CareAction;
 import com.xxsx.earthhuman.HumanCareActionPayload;
 import com.xxsx.earthhuman.HumanCareCancelPayload;
 import com.xxsx.earthhuman.HumanCareStatePayload;
+import com.xxsx.earthhuman.HumanExerciseSessionPayload;
 import com.xxsx.earthhuman.HumanBodySyncPayload;
 import com.xxsx.earthhuman.HumanActivityType;
 import com.xxsx.earthhuman.HumanOpenSettingsPayload;
@@ -14,6 +15,7 @@ import com.xxsx.earthhuman.HumanOpenGuidePayload;
 import com.xxsx.earthhuman.HumanStatus;
 import com.xxsx.earthhuman.HumanStatusSyncPayload;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
@@ -38,7 +40,11 @@ public final class EarthHumanClient {
     private static HumanBodySyncPayload syncedBody = new HumanBodySyncPayload(
             1.0D, 1.0D, 1.0D, 0.0D, 0.0D);
     private static HumanCareStatePayload syncedCareState = HumanCareStatePayload.IDLE;
+    private static HumanExerciseSessionPayload syncedExercise = HumanExerciseSessionPayload.IDLE;
+    private static CameraType cameraBeforeExercise;
+    private static boolean exerciseCameraForced;
     private static int careAnimationTicker;
+    private static int exerciseSwingTicker;
 
     private EarthHumanClient() {
     }
@@ -66,6 +72,7 @@ public final class EarthHumanClient {
         event.register(HumanOpenStatusPayload.TYPE, EarthHumanClient::handleOpenStatus);
         event.register(HumanOpenGuidePayload.TYPE, EarthHumanClient::handleOpenGuide);
         event.register(HumanCareStatePayload.TYPE, EarthHumanClient::handleCareState);
+        event.register(HumanExerciseSessionPayload.TYPE, EarthHumanClient::handleExerciseSession);
     }
 
     private static void onItemTooltip(ItemTooltipEvent event) {
@@ -114,13 +121,71 @@ public final class EarthHumanClient {
     }
 
     /**
+     * A station exercise switches to third person while it runs, so the player can see the action,
+     * and restores whatever view was in use before it started.
+     */
+    private static void handleExerciseSession(HumanExerciseSessionPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            syncedExercise = payload;
+            Minecraft minecraft = Minecraft.getInstance();
+            if (payload.active()) {
+                if (!exerciseCameraForced) {
+                    cameraBeforeExercise = minecraft.options.getCameraType();
+                    exerciseCameraForced = true;
+                }
+                minecraft.options.setCameraType(CameraType.THIRD_PERSON_BACK);
+            } else if (exerciseCameraForced) {
+                restoreExerciseCamera(minecraft);
+            }
+        });
+    }
+
+    private static void restoreExerciseCamera(Minecraft minecraft) {
+        exerciseCameraForced = false;
+        minecraft.options.setCameraType(
+                cameraBeforeExercise == null ? CameraType.FIRST_PERSON : cameraBeforeExercise);
+        cameraBeforeExercise = null;
+    }
+
+    /**
      * A care action is owned by the server and has no item use behind it, so the client supplies
      * the visible motion: one arm swing every ten ticks while the action runs.
      */
     private static void onClientTick(ClientTickEvent.Post event) {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (player == null || minecraft.screen != null || !syncedCareState.active()) {
+        if (player == null) {
+            careAnimationTicker = 0;
+            exerciseSwingTicker = 0;
+            if (exerciseCameraForced) {
+                restoreExerciseCamera(minecraft);
+            }
+            return;
+        }
+        tickExerciseAnimation(minecraft, player);
+        tickCareAnimation(minecraft, player);
+    }
+
+    private static void tickExerciseAnimation(Minecraft minecraft, LocalPlayer player) {
+        if (!syncedExercise.active()) {
+            exerciseSwingTicker = 0;
+            return;
+        }
+        if (minecraft.screen != null || player.isUsingItem()) {
+            return;
+        }
+        // The station owns the session; the client only supplies the visible reps.
+        if (++exerciseSwingTicker % 8 == 0) {
+            player.swing(InteractionHand.MAIN_HAND);
+        }
+    }
+
+    /**
+     * A care action is owned by the server and has no item use behind it, so the client supplies
+     * the visible motion: one arm swing every ten ticks while the action runs.
+     */
+    private static void tickCareAnimation(Minecraft minecraft, LocalPlayer player) {
+        if (minecraft.screen != null || !syncedCareState.active()) {
             careAnimationTicker = 0;
             return;
         }

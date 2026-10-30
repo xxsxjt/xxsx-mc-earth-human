@@ -5,30 +5,32 @@ import net.minecraft.network.chat.Component;
 import java.util.Locale;
 
 public enum ExerciseAction {
-    PUSH_UP("push_up", 3.2D, 16.0D, 4.5D,
+    PUSH_UP("push_up", 3.2D, 16.0D, 4.5D, 40,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
-    SQUAT("squat", 3.0D, 15.0D, 4.0D,
+    SQUAT("squat", 3.0D, 15.0D, 4.0D, 44,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
-    CORE_TRAINING("core", 2.8D, 14.0D, 3.8D,
+    CORE_TRAINING("core", 2.8D, 14.0D, 3.8D, 40,
             new BodyPart[]{BodyPart.TORSO}),
-    STRETCH("stretch", 0.8D, -12.0D, -2.5D,
+    STRETCH("stretch", 0.8D, -12.0D, -2.5D, 62,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
-    DUMBBELL_CURL("dumbbell", 4.0D, 18.0D, 5.0D,
+    DUMBBELL_CURL("dumbbell", 4.0D, 18.0D, 5.0D, 42,
             new BodyPart[]{BodyPart.LIMBS}),
-    RESISTANCE_BAND_ROW("band", 3.6D, 17.0D, 4.6D,
+    RESISTANCE_BAND_ROW("band", 3.6D, 17.0D, 4.6D, 48,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO});
 
     public final String id;
     public final double xpGain;
     public final double loadGain;
     public final double fatigueGain;
+    public final int durationTicks;
     public final BodyPart[] parts;
 
-    ExerciseAction(String id, double xpGain, double loadGain, double fatigueGain, BodyPart[] parts) {
+    ExerciseAction(String id, double xpGain, double loadGain, double fatigueGain, int durationTicks, BodyPart[] parts) {
         this.id = id;
         this.xpGain = xpGain;
         this.loadGain = loadGain;
         this.fatigueGain = fatigueGain;
+        this.durationTicks = durationTicks;
         this.parts = parts;
     }
 
@@ -37,7 +39,7 @@ public enum ExerciseAction {
     }
 
     public static ExerciseAction byId(String value) {
-        String normalized = value.toLowerCase(Locale.ROOT);
+        String normalized = value == null ? "" : value.toLowerCase(Locale.ROOT);
         for (ExerciseAction action : values()) {
             if (action.id.equals(normalized)) {
                 return action;

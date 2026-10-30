@@ -21,6 +21,7 @@ public class EarthHuman {
     public EarthHuman(IEventBus modBus, ModContainer modContainer) {
         modContainer.registerConfig(ModConfig.Type.COMMON, EarthHumanConfig.SPEC);
         EarthHumanEffects.register(modBus);
+        EarthHumanBlocks.register(modBus);
         EarthHumanItems.register(modBus);
         modBus.addListener(HumanNetwork::registerPayloads);
         NeoForge.EVENT_BUS.addListener(EarthHumanCommands::register);

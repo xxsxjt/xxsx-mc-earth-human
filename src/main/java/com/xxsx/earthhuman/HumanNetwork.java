@@ -16,6 +16,7 @@ public final class HumanNetwork {
                 .playToClient(HumanOpenStatusPayload.TYPE, HumanOpenStatusPayload.CODEC)
                 .playToClient(HumanOpenGuidePayload.TYPE, HumanOpenGuidePayload.CODEC)
                 .playToClient(HumanCareStatePayload.TYPE, HumanCareStatePayload.CODEC)
+                .playToClient(HumanExerciseSessionPayload.TYPE, HumanExerciseSessionPayload.CODEC)
                 .playToServer(HumanCareActionPayload.TYPE, HumanCareActionPayload.CODEC, HumanCareActions::handlePayload)
                 .playToServer(HumanCareCancelPayload.TYPE, HumanCareCancelPayload.CODEC, HumanCareActions::handleCancelPayload);
     }
@@ -48,6 +49,10 @@ public final class HumanNetwork {
     }
 
     public static void syncCare(ServerPlayer player, HumanCareStatePayload state) {
+        PacketDistributor.sendToPlayer(player, state);
+    }
+
+    public static void syncExercise(ServerPlayer player, HumanExerciseSessionPayload state) {
         PacketDistributor.sendToPlayer(player, state);
     }
 }

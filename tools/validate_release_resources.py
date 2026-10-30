@@ -29,7 +29,7 @@ def load_json(path: pathlib.Path, errors: list[str]) -> object | None:
 def registered_item_ids(errors: list[str]) -> set[str]:
     source = ITEM_SOURCE.read_text(encoding="utf-8")
     ids = set(re.findall(
-        r"=\s*(?:guided|consumable|mask|thermometer|fieldNote|exercise)\(\"([a-z0-9_]+)\"",
+        r"=\s*(?:guided|canteen|consumable|mask|thermometer|fieldNote|exercise|station)\(\"([a-z0-9_]+)\"",
         source,
     ))
     if not ids:

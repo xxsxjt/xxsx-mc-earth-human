@@ -63,12 +63,9 @@ public final class EarthHumanItems {
             0.82D, "tooltip.earth_human.dust_mask.filter");
     public static final DeferredItem<Item> SIMPLE_THERMOMETER = thermometer("simple_thermometer", props -> props.stacksTo(1));
     public static final DeferredItem<Item> FIELD_HEALTH_NOTE = fieldNote("field_health_note", props -> props.stacksTo(1));
-    public static final DeferredItem<Item> RESISTANCE_BAND = exercise("resistance_band", props -> props.stacksTo(1),
-            ExerciseAction.RESISTANCE_BAND_ROW);
-    public static final DeferredItem<Item> TRAINING_MAT = exercise("training_mat", props -> props.stacksTo(1),
-            ExerciseAction.STRETCH);
-    public static final DeferredItem<Item> SIMPLE_DUMBBELL = exercise("simple_dumbbell", props -> props.stacksTo(1),
-            ExerciseAction.DUMBBELL_CURL);
+    public static final DeferredItem<Item> RESISTANCE_BAND = station("resistance_band", EarthHumanBlocks.RESISTANCE_BAND);
+    public static final DeferredItem<Item> TRAINING_MAT = station("training_mat", EarthHumanBlocks.TRAINING_MAT);
+    public static final DeferredItem<Item> SIMPLE_DUMBBELL = station("simple_dumbbell", EarthHumanBlocks.SIMPLE_DUMBBELL);
 
     private EarthHumanItems() {
     }
@@ -136,10 +133,10 @@ public final class EarthHumanItems {
         return item;
     }
 
-    private static DeferredItem<Item> exercise(String id, UnaryOperator<Item.Properties> properties, ExerciseAction action) {
+    private static DeferredItem<Item> station(String id, net.neoforged.neoforge.registries.DeferredBlock<? extends net.minecraft.world.level.block.Block> block) {
         DeferredItem<Item> item = ITEMS.registerItem(id,
-                props -> new ExerciseEquipmentItem(props, "tooltip.earth_human." + id, action),
-                properties);
+                props -> new net.minecraft.world.item.BlockItem(block.get(), props),
+                props -> props.stacksTo(1));
         TAB_ITEMS.add(item);
         return item;
     }

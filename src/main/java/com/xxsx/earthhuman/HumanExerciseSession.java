@@ -1,0 +1,107 @@
+package com.xxsx.earthhuman;
+
+import net.minecraft.core.BlockPos;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.block.state.BlockState;
+
+import java.util.Locale;
+
+/**
+ * Server-owned exercise session started from a placed training station. The player has to stay at
+ * the station until it finishes; the reward is applied through HumanExercise on completion.
+ */
+public final class HumanExerciseSession {
+    private static final String PREFIX = EarthHuman.MODID + ".exercise.";
+    private static final String ACTIVE_ACTION = PREFIX + "action";
+    private static final String STATION_POS = PREFIX + "station";
+    private static final String FINISH_TICK = PREFIX + "finish";
+    private static final int COOLDOWN_TICKS = 32;
+    private static final int MAX_DISTANCE_SQUARED = 6 * 6;
+
+    private HumanExerciseSession() {
+    }
+
+    public static boolean start(ServerPlayer player, ExerciseAction action, BlockPos pos) {
+        if (!EarthHumanConfig.trainingEnabled()) {
+            player.sendSystemMessage(Component.translatable("message.earth_human.training.disabled"));
+            return false;
+        }
+        if (player.isCreative() || player.isSpectator()) {
+            return false;
+        }
+        CompoundTag data = player.getPersistentData();
+        if (data.contains(ACTIVE_ACTION)) {
+            player.sendSystemMessage(Component.translatable("message.earth_human.training.station_busy"));
+            return false;
+        }
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        if (!training.canManualExercise(player, COOLDOWN_TICKS)) {
+            player.sendSystemMessage(Component.translatable("message.earth_human.training.too_fast"));
+            return false;
+        }
+        data.putString(ACTIVE_ACTION, action.id);
+        data.putLong(STATION_POS, pos.asLong());
+        data.putLong(FINISH_TICK, player.level().getGameTime() + action.durationTicks);
+        sync(player, action, action.durationTicks);
+        player.sendSystemMessage(Component.translatable(
+                "message.earth_human.training.station_started",
+                action.displayName(),
+                String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D)));
+        return true;
+    }
+
+    public static void tick(ServerPlayer player) {
+        CompoundTag data = player.getPersistentData();
+        if (!data.contains(ACTIVE_ACTION)) {
+            return;
+        }
+        if (!player.isAlive()) {
+            clear(player);
+            return;
+        }
+        ExerciseAction action = ExerciseAction.byId(data.getString(ACTIVE_ACTION).orElse(""));
+        if (action == null) {
+            clear(player);
+            return;
+        }
+        BlockPos pos = BlockPos.of(data.getLong(STATION_POS).orElse(0L));
+        BlockState state = player.level().getBlockState(pos);
+        if (ExerciseStationBlock.actionOf(state) != action
+                || player.blockPosition().distSqr(pos) > MAX_DISTANCE_SQUARED) {
+            clear(player);
+            player.sendSystemMessage(Component.translatable("message.earth_human.training.station_left"));
+            return;
+        }
+        long now = player.level().getGameTime();
+        long finish = data.getLong(FINISH_TICK).orElse(now);
+        if (now < finish) {
+            if (now % 10L == 0L) {
+                sync(player, action, (int) Math.max(0L, finish - now));
+            }
+            return;
+        }
+        clear(player);
+        HumanExercise.apply(player, action, true);
+    }
+
+    public static void cancel(ServerPlayer player) {
+        if (player.getPersistentData().contains(ACTIVE_ACTION)) {
+            clear(player);
+        }
+    }
+
+    private static void clear(ServerPlayer player) {
+        CompoundTag data = player.getPersistentData();
+        data.remove(ACTIVE_ACTION);
+        data.remove(STATION_POS);
+        data.remove(FINISH_TICK);
+        HumanNetwork.syncExercise(player, HumanExerciseSessionPayload.IDLE);
+    }
+
+    private static void sync(ServerPlayer player, ExerciseAction action, int remainingTicks) {
+        HumanNetwork.syncExercise(player, new HumanExerciseSessionPayload(
+                action == null ? "" : action.id, remainingTicks, action == null ? 0 : action.durationTicks));
+    }
+}

@@ -1,0 +1,20 @@
+{
+  "textures": {
+    "particle": "earth_human:item/simple_dumbbell",
+    "tex": "earth_human:item/simple_dumbbell"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 1, 16],
+      "faces": {
+        "up": { "texture": "#tex" },
+        "down": { "texture": "#tex" },
+        "north": { "texture": "#tex" },
+        "south": { "texture": "#tex" },
+        "west": { "texture": "#tex" },
+        "east": { "texture": "#tex" }
+      }
+    }
+  ]
+}

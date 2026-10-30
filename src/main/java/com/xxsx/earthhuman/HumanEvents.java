@@ -60,6 +60,7 @@ public final class HumanEvents {
         }
 
         HumanCareActions.tick(player);
+        HumanExerciseSession.tick(player);
 
         if (player.isCreative() || player.isSpectator()) {
             markGroundState(player);
