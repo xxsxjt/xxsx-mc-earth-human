@@ -29,6 +29,10 @@ public final class HumanExercise {
             return false;
         }
         training.markManualExercise(player);
+        if (!fromEquipment) {
+            // Command-driven exercise has no item behind it, so give the player a visible action.
+            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+        }
 
         double worstLoad = 0.0D;
         for (BodyPart part : action.parts) {

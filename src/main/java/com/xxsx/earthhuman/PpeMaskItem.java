@@ -6,15 +6,20 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.ItemUtils;
 import net.minecraft.world.level.Level;
 
 import java.util.function.Consumer;
 
 /** Hand-held mask that can be equipped into the head slot without an armor dependency. */
 public final class PpeMaskItem extends GuidedItem {
+    private static final int EQUIP_TICKS = 12;
+
     private final double filterStrength;
     private final String protectionKey;
 
@@ -26,21 +31,35 @@ public final class PpeMaskItem extends GuidedItem {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (level.isClientSide()) {
-            return InteractionResult.SUCCESS;
-        }
-        ItemStack head = player.getItemBySlot(EquipmentSlot.HEAD);
-        if (!head.isEmpty()) {
-            player.sendOverlayMessage(Component.translatable("message.earth_human.mask.head_occupied"));
+        if (!player.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
+            if (!level.isClientSide()) {
+                player.sendOverlayMessage(Component.translatable("message.earth_human.mask.head_occupied"));
+            }
             return InteractionResult.FAIL;
         }
-        ItemStack held = player.getItemInHand(hand);
-        player.setItemSlot(EquipmentSlot.HEAD, held.copyWithCount(1));
-        if (!player.getAbilities().instabuild) {
-            held.shrink(1);
+        return ItemUtils.startUsingInstantly(level, player, hand);
+    }
+
+    @Override
+    public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
+        if (entity instanceof ServerPlayer player && player.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
+            player.setItemSlot(EquipmentSlot.HEAD, stack.copyWithCount(1));
+            if (!player.getAbilities().instabuild) {
+                stack.shrink(1);
+            }
+            player.sendOverlayMessage(Component.translatable("message.earth_human.mask.equipped"));
         }
-        player.sendOverlayMessage(Component.translatable("message.earth_human.mask.equipped"));
-        return InteractionResult.SUCCESS;
+        return stack;
+    }
+
+    @Override
+    public ItemUseAnimation getUseAnimation(ItemStack stack) {
+        return ItemUseAnimation.BRUSH;
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack, LivingEntity entity) {
+        return EQUIP_TICKS;
     }
 
     @Override

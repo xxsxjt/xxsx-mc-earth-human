@@ -18,8 +18,10 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.InteractionHand;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
@@ -36,6 +38,7 @@ public final class EarthHumanClient {
     private static HumanBodySyncPayload syncedBody = new HumanBodySyncPayload(
             1.0D, 1.0D, 1.0D, 0.0D, 0.0D);
     private static HumanCareStatePayload syncedCareState = HumanCareStatePayload.IDLE;
+    private static int careAnimationTicker;
 
     private EarthHumanClient() {
     }
@@ -49,6 +52,7 @@ public final class EarthHumanClient {
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onItemTooltip);
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onContainerForeground);
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onScreenMousePressed);
+        NeoForge.EVENT_BUS.addListener(EarthHumanClient::onClientTick);
     }
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
@@ -107,6 +111,25 @@ public final class EarthHumanClient {
 
     private static void handleCareState(HumanCareStatePayload payload, IPayloadContext context) {
         context.enqueueWork(() -> syncedCareState = payload);
+    }
+
+    /**
+     * A care action is owned by the server and has no item use behind it, so the client supplies
+     * the visible motion: one arm swing every ten ticks while the action runs.
+     */
+    private static void onClientTick(ClientTickEvent.Post event) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null || minecraft.screen != null || !syncedCareState.active()) {
+            careAnimationTicker = 0;
+            return;
+        }
+        if (player.isUsingItem()) {
+            return;
+        }
+        if (++careAnimationTicker % 10 == 0) {
+            player.swing(InteractionHand.MAIN_HAND);
+        }
     }
 
     private static void renderBodyStatus(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker deltaTracker) {

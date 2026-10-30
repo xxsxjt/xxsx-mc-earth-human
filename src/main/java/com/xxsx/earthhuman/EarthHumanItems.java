@@ -21,7 +21,7 @@ public final class EarthHumanItems {
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(EarthHuman.MODID);
     private static final List<DeferredItem<? extends Item>> TAB_ITEMS = new ArrayList<>();
 
-    public static final DeferredItem<Item> CANTEEN = guided("canteen", props -> props.stacksTo(1));
+    public static final DeferredItem<Item> CANTEEN = canteen("canteen", props -> props.stacksTo(1));
     public static final DeferredItem<Item> FILLED_CANTEEN = consumable("filled_canteen", props -> props.stacksTo(1),
             ItemUseAnimation.DRINK, 45.0D, 0.0D, 0.0D, () -> CANTEEN.get());
     public static final DeferredItem<Item> WATER_PURIFICATION_TABLET = consumable("water_purification_tablet", props -> props.stacksTo(32),
@@ -81,6 +81,14 @@ public final class EarthHumanItems {
     private static DeferredItem<Item> guided(String id, UnaryOperator<Item.Properties> properties) {
         DeferredItem<Item> item = ITEMS.registerItem(id,
                 props -> new GuidedItem(props, "tooltip.earth_human." + id),
+                properties);
+        TAB_ITEMS.add(item);
+        return item;
+    }
+
+    private static DeferredItem<Item> canteen(String id, UnaryOperator<Item.Properties> properties) {
+        DeferredItem<Item> item = ITEMS.registerItem(id,
+                props -> new CanteenItem(props, "tooltip.earth_human." + id),
                 properties);
         TAB_ITEMS.add(item);
         return item;
