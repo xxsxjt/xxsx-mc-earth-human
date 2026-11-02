@@ -1,7 +1,7 @@
 {
   "textures": {
-    "particle": "earth_human:item/simple_dumbbell",
-    "tex": "earth_human:item/simple_dumbbell"
+    "particle": "earth_human:block/simple_dumbbell",
+    "tex": "earth_human:block/simple_dumbbell"
   },
   "elements": [
     {

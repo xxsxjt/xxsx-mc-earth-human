@@ -1,7 +1,7 @@
 {
   "textures": {
-    "particle": "earth_human:item/resistance_band",
-    "tex": "earth_human:item/resistance_band"
+    "particle": "earth_human:block/resistance_band",
+    "tex": "earth_human:block/resistance_band"
   },
   "elements": [
     {

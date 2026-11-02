@@ -1,7 +1,7 @@
 {
   "textures": {
-    "particle": "earth_human:item/training_mat",
-    "tex": "earth_human:item/training_mat"
+    "particle": "earth_human:block/training_mat",
+    "tex": "earth_human:block/training_mat"
   },
   "elements": [
     {
