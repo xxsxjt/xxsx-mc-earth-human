@@ -24,7 +24,7 @@ import java.util.Map;
 public class ExerciseStationBlock extends Block {
     public static final MapCodec<ExerciseStationBlock> CODEC = simpleCodec(ExerciseStationBlock::new);
     private static final Map<Block, ExerciseAction> ACTIONS = new IdentityHashMap<>();
-    private static final VoxelShape SHAPE = Block.column(16.0D, 0.0D, 2.0D);
+    private static final VoxelShape SHAPE = Block.column(14.0D, 0.0D, 4.0D);
 
     public ExerciseStationBlock(BlockBehaviour.Properties properties) {
         super(properties);
