@@ -17,7 +17,7 @@ public final class HumanHudClientConfig {
     private static boolean showVitalsHud = true;
     private static boolean showBodyHud = true;
     private static boolean showNumericValues = true;
-    private static HudCorner bodyHudCorner = HudCorner.BOTTOM_LEFT;
+    private static HudCorner bodyHudCorner = HudCorner.TOP_LEFT;
     private static HudTheme hudTheme = HudTheme.CLINICAL;
     private static double bodyHudScale = 1.0D;
     private static double bodyHudOpacity = 0.5D;
@@ -40,7 +40,7 @@ public final class HumanHudClientConfig {
             showVitalsHud = Boolean.parseBoolean(properties.getProperty("showVitalsHud", "true"));
             showBodyHud = Boolean.parseBoolean(properties.getProperty("showBodyHud", "true"));
             showNumericValues = Boolean.parseBoolean(properties.getProperty("showNumericValues", "true"));
-            bodyHudCorner = HudCorner.byId(properties.getProperty("bodyHudCorner", HudCorner.BOTTOM_LEFT.id));
+            bodyHudCorner = HudCorner.byId(properties.getProperty("bodyHudCorner", HudCorner.TOP_LEFT.id));
             hudTheme = HudTheme.byId(properties.getProperty("hudTheme", HudTheme.CLINICAL.id));
             bodyHudScale = clamp(parseDouble(properties.getProperty("bodyHudScale"), 1.0D), 0.6D, 2.0D);
             bodyHudOpacity = clamp(parseDouble(properties.getProperty("bodyHudOpacity"), 0.5D), 0.1D, 1.0D);
@@ -183,7 +183,7 @@ public final class HumanHudClientConfig {
                     return corner;
                 }
             }
-            return BOTTOM_LEFT;
+            return TOP_LEFT;
         }
     }
 

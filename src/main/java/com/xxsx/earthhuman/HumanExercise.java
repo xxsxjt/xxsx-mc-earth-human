@@ -19,6 +19,11 @@ public final class HumanExercise {
     public static void handlePayload(HumanExerciseActionPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> {
             if (context.player() instanceof ServerPlayer player) {
+                String raw = payload.actionId() == null ? "" : payload.actionId().trim();
+                if (raw.isEmpty() || "stop".equalsIgnoreCase(raw) || "cancel".equalsIgnoreCase(raw)) {
+                    HumanExerciseSession.cancel(player);
+                    return;
+                }
                 ExerciseAction action = ExerciseAction.byId(payload.actionId());
                 if (action != null) {
                     HumanExerciseSession.start(player, action, null);
@@ -91,7 +96,7 @@ public final class HumanExercise {
         HumanNetwork.sync(player, status);
         player.sendSystemMessage(Component.translatable(
                 fromEquipment ? "message.earth_human.training.used_equipment" : "message.earth_human.training.did_action",
-                action.displayName(),
+                Component.translatable(action.translationKey()),
                 Math.round(worstLoad),
                 Math.round(status.fatigue)));
         return true;

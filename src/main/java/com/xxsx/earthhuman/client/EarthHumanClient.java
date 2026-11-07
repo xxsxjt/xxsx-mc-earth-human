@@ -19,15 +19,20 @@ import com.xxsx.earthhuman.HumanStatus;
 import com.xxsx.earthhuman.HumanStatusSyncPayload;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.CameraType;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.model.geom.ModelPart;
+import net.minecraft.client.model.player.PlayerModel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterGuiLayersEvent;
+import net.neoforged.neoforge.client.event.RenderPlayerEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
@@ -38,7 +43,6 @@ import net.neoforged.neoforge.event.entity.player.ItemTooltipEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 public final class EarthHumanClient {
-    private static final int ROW_HEIGHT = 14;
     private static HumanStatus syncedStatus = new HumanStatus(100.0D, 37.0D, 0.0D, 0);
     private static HumanBodySyncPayload syncedBody = new HumanBodySyncPayload(
             1.0D, 1.0D, 1.0D, 0.0D, 0.0D);
@@ -63,10 +67,11 @@ public final class EarthHumanClient {
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onContainerForeground);
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onScreenMousePressed);
         NeoForge.EVENT_BUS.addListener(EarthHumanClient::onClientTick);
+        NeoForge.EVENT_BUS.addListener(EarthHumanClient::onRenderPlayer);
     }
 
     private static void registerGuiLayers(RegisterGuiLayersEvent event) {
-        event.registerAbove(VanillaGuiLayers.FOOD_LEVEL, EarthHuman.id("body_status"), EarthHumanClient::renderBodyStatus);
+        event.registerAbove(VanillaGuiLayers.FOOD_LEVEL, EarthHuman.id("body_status"), HumanHudOverlay::render);
     }
 
     private static void registerPayloadHandlers(RegisterClientPayloadHandlersEvent event) {
@@ -103,7 +108,7 @@ public final class EarthHumanClient {
             return;
         }
         event.setCanceled(true);
-        openStatusScreen(EarthHumanStatusScreen.TAB_BODY);
+        Minecraft.getInstance().setScreen(new BodyPartScreen(event.getScreen()));
     }
 
     private static void handleStatusSync(HumanStatusSyncPayload payload, IPayloadContext context) {
@@ -185,41 +190,120 @@ public final class EarthHumanClient {
 
     private static void tickExerciseAnimation(Minecraft minecraft, LocalPlayer player) {
         if (!syncedExercise.active()) {
-            if (exerciseSwingTicker > 0) {
-                player.setShiftKeyDown(false);
-            }
             exerciseSwingTicker = 0;
             return;
         }
         if (minecraft.screen != null || player.isUsingItem()) {
             return;
         }
-        // The station owns the session; the client only supplies the visible reps.
+        // Never lock or modify camera pitch/yaw (setXRot/setYRot) or force jumpFromGround().
+        // Instead, alternate smooth arm swings and spawn sweat/breath particles while RenderPlayerEvent animates the pose.
         exerciseSwingTicker++;
         String act = syncedExercise.actionId();
-        boolean deepPose = (exerciseSwingTicker / 6) % 2 == 1;
-        if ("push_up".equals(act) || "squat".equals(act)) {
-            player.setShiftKeyDown(deepPose);
-            player.setXRot(deepPose ? 32.0F : 4.0F);
-            if (exerciseSwingTicker % 6 == 0) {
-                player.swing(exerciseSwingTicker % 12 == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
-            }
-            if ("squat".equals(act) && exerciseSwingTicker % 14 == 0 && player.onGround()) {
-                player.jumpFromGround();
-            }
-        } else if ("stretch".equals(act)) {
-            player.setShiftKeyDown(false);
-            player.setXRot(deepPose ? -26.0F : 6.0F);
-            if (exerciseSwingTicker % 8 == 0) {
-                player.swing(exerciseSwingTicker % 16 == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
-            }
-        } else {
-            player.setShiftKeyDown(deepPose);
-            player.setXRot(deepPose ? 22.0F : 0.0F);
-            if (exerciseSwingTicker % 7 == 0) {
-                player.swing(InteractionHand.MAIN_HAND);
+        int swingInterval = "stretch".equals(act) ? 8 : 6;
+        if (exerciseSwingTicker % swingInterval == 0) {
+            InteractionHand hand = ((exerciseSwingTicker / swingInterval) % 2 == 0)
+                    ? InteractionHand.MAIN_HAND
+                    : InteractionHand.OFF_HAND;
+            player.swing(hand);
+        }
+        if (minecraft.level != null && exerciseSwingTicker % 8 == 0) {
+            double ox = (minecraft.level.getRandom().nextDouble() - 0.5D) * 0.45D;
+            double oz = (minecraft.level.getRandom().nextDouble() - 0.5D) * 0.45D;
+            minecraft.level.addParticle(ParticleTypes.SPLASH,
+                    player.getX() + ox, player.getY() + 1.15D, player.getZ() + oz,
+                    0.0D, 0.02D, 0.0D);
+            if (exerciseSwingTicker % 16 == 0) {
+                minecraft.level.addParticle(ParticleTypes.CLOUD,
+                        player.getX(), player.getY() + 1.50D, player.getZ(),
+                        0.0D, 0.01D, 0.0D);
+                minecraft.level.playLocalSound(player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.PLAYER_BREATH, SoundSource.PLAYERS, 0.25F, 1.08F, false);
             }
         }
+    }
+
+    private static void onRenderPlayer(RenderPlayerEvent.Pre<?> event) {
+        if (!syncedExercise.active()) {
+            return;
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.player == null || event.getRenderState().id != minecraft.player.getId()) {
+            return;
+        }
+        PlayerModel model = event.getRenderer().getModel();
+        float time = exerciseSwingTicker + event.getPartialTick();
+        float wave = Mth.sin(time * 0.45F);
+        float rep = (wave + 1.0F) * 0.5F; // 0..1 smooth rep cycle
+        String act = syncedExercise.actionId();
+
+        switch (act) {
+            case "push_up" -> {
+                model.body.xRot = 0.55F + 0.28F * rep;
+                model.rightArm.xRot = -1.35F + 0.55F * rep;
+                model.leftArm.xRot = -1.35F + 0.55F * rep;
+                model.rightArm.zRot = 0.18F * rep;
+                model.leftArm.zRot = -0.18F * rep;
+                model.rightLeg.xRot = 0.15F * rep;
+                model.leftLeg.xRot = 0.15F * rep;
+            }
+            case "squat" -> {
+                model.body.xRot = 0.36F * rep;
+                model.rightLeg.xRot = -0.72F * rep;
+                model.leftLeg.xRot = -0.72F * rep;
+                model.rightLeg.zRot = -0.08F * rep;
+                model.leftLeg.zRot = 0.08F * rep;
+                model.rightArm.xRot = -1.15F * rep;
+                model.leftArm.xRot = -1.15F * rep;
+            }
+            case "sit_up", "core" -> {
+                model.body.xRot = -0.20F + 0.65F * rep;
+                model.rightLeg.xRot = -0.85F;
+                model.leftLeg.xRot = -0.85F;
+                model.rightArm.xRot = -1.65F + 0.35F * rep;
+                model.leftArm.xRot = -1.65F + 0.35F * rep;
+                model.rightArm.yRot = -0.25F;
+                model.leftArm.yRot = 0.25F;
+            }
+            case "pull_up" -> {
+                model.rightArm.xRot = -2.75F + 0.55F * rep;
+                model.leftArm.xRot = -2.75F + 0.55F * rep;
+                model.rightArm.zRot = -0.15F;
+                model.leftArm.zRot = 0.15F;
+                model.body.xRot = -0.10F * rep;
+                model.rightLeg.xRot = 0.22F * wave;
+                model.leftLeg.xRot = -0.22F * wave;
+            }
+            case "stretch" -> {
+                model.rightArm.xRot = -0.85F - 0.50F * rep;
+                model.leftArm.xRot = -0.85F - 0.50F * rep;
+                model.rightArm.zRot = 0.60F * rep;
+                model.leftArm.zRot = -0.60F * rep;
+                model.body.xRot = -0.12F * rep;
+            }
+            default -> {
+                model.rightArm.xRot = -0.90F - 0.75F * rep;
+                model.leftArm.xRot = -0.90F - 0.75F * (1.0F - rep);
+                model.body.xRot = 0.12F * rep;
+            }
+        }
+        copyPose(model.rightArm, model.rightSleeve);
+        copyPose(model.leftArm, model.leftSleeve);
+        copyPose(model.rightLeg, model.rightPants);
+        copyPose(model.leftLeg, model.leftPants);
+        copyPose(model.body, model.jacket);
+    }
+
+    private static void copyPose(ModelPart source, ModelPart target) {
+        target.x = source.x;
+        target.y = source.y;
+        target.z = source.z;
+        target.xRot = source.xRot;
+        target.yRot = source.yRot;
+        target.zRot = source.zRot;
+        target.xScale = source.xScale;
+        target.yScale = source.yScale;
+        target.zScale = source.zScale;
     }
 
     /**
@@ -240,41 +324,7 @@ public final class EarthHumanClient {
     }
 
     private static void renderBodyStatus(GuiGraphicsExtractor graphics, net.minecraft.client.DeltaTracker deltaTracker) {
-        Minecraft minecraft = Minecraft.getInstance();
-        LocalPlayer player = minecraft.player;
-        if (player == null || minecraft.gameMode == null || minecraft.options.hideGui || !minecraft.gameMode.canHurtPlayer()) {
-            return;
-        }
-        if (player.isCreative() || player.isSpectator()) {
-            return;
-        }
-
-        HumanStatus status = syncedStatus;
-        Font font = minecraft.font;
-        renderHumanHud(graphics);
-        if (!HumanHudClientConfig.showVitalsHud()) {
-            return;
-        }
-
-        int x = graphics.guiWidth() / 2 + 10;
-        int y = graphics.guiHeight() - minecraft.gui.rightHeight;
-
-        int firstWidth = 42;
-        int secondWidth = 48;
-        int thirdWidth = 47;
-        int totalWidth = firstWidth + secondWidth + thirdWidth + 4;
-        graphics.fill(x - 2, y - 1, x + totalWidth + 2, y + 12, 0xA8141A1C);
-        graphics.outline(x - 2, y - 1, totalWidth + 2, 13, 0xAA52615D);
-        drawCell(graphics, font, x, y + 1, firstWidth, status.hydration / 100.0D, hydrationColor(status.hydration),
-                hudLabel("hud.earth_human.hydration.short", status.hydration, false));
-        drawCell(graphics, font, x + firstWidth + 2, y + 1, secondWidth,
-                (status.bodyTemperature - 32.0D) / 10.5D, temperatureColor(status.bodyTemperature),
-                hudLabel("hud.earth_human.temperature.short", status.bodyTemperature, true));
-        drawCell(graphics, font, x + firstWidth + secondWidth + 4, y + 1, thirdWidth,
-                status.fatigue / 100.0D, fatigueColor(status.fatigue),
-                hudLabel("hud.earth_human.fatigue.short", status.fatigue, false));
-
-        minecraft.gui.rightHeight += ROW_HEIGHT;
+        HumanHudOverlay.render(graphics, deltaTracker);
     }
 
     public static void openSettingsScreen() {
@@ -283,6 +333,10 @@ public final class EarthHumanClient {
 
     public static void openStatusScreen(int initialTab) {
         Minecraft minecraft = Minecraft.getInstance();
+        if (initialTab == EarthHumanStatusScreen.TAB_BODY) {
+            minecraft.setScreen(new BodyPartScreen(null));
+            return;
+        }
         minecraft.setScreen(new EarthHumanStatusScreen(null, initialTab));
     }
 
@@ -311,6 +365,10 @@ public final class EarthHumanClient {
         return syncedCareState;
     }
 
+    static HumanExerciseSessionPayload syncedExercise() {
+        return syncedExercise;
+    }
+
     static void requestCareAction(CareAction action) {
         ClientPacketDistributor.sendToServer(new HumanCareActionPayload(action.id));
     }
@@ -319,64 +377,11 @@ public final class EarthHumanClient {
         ClientPacketDistributor.sendToServer(new HumanExerciseActionPayload(action.id));
     }
 
+    static void stopExerciseAction() {
+        ClientPacketDistributor.sendToServer(new HumanExerciseActionPayload("stop"));
+    }
+
     static void cancelCareAction() {
         ClientPacketDistributor.sendToServer(HumanCareCancelPayload.INSTANCE);
-    }
-
-    private static void renderHumanHud(GuiGraphicsExtractor graphics) {
-        if (!HumanHudClientConfig.showBodyHud()) {
-            return;
-        }
-        double scale = HumanHudClientConfig.bodyHudScale();
-        BodyHudRenderer.Placement placement = BodyHudRenderer.placement(graphics.guiWidth(), graphics.guiHeight());
-        BodyHudRenderer.draw(graphics, syncedBody, placement.x(), placement.y(), scale,
-                HumanHudClientConfig.bodyHudOpacity());
-    }
-
-    private static void drawCell(GuiGraphicsExtractor graphics, Font font, int x, int y, int width,
-                                 double ratio, int color, String label) {
-        graphics.fill(x, y - 2, x + width, y + 11, 0xB9161C1D);
-        graphics.outline(x, y - 2, width, 13, 0x884D5A57);
-        graphics.text(font, label, x + 2, y - 1, 0xFFF0F2EC, false);
-        graphics.fill(x + 2, y + 7, x + width - 2, y + 10, 0xFF27302F);
-        double clamped = Math.max(0.0D, Math.min(1.0D, ratio));
-        int fillWidth = Math.max(1, (int) Math.round((width - 4) * clamped));
-        graphics.fill(x + 2, y + 7, x + 2 + fillWidth, y + 10, color | 0xFF000000);
-        graphics.fill(x + 2 + fillWidth, y + 7, x + 3 + fillWidth, y + 10, 0xFFF0F2EC);
-    }
-
-    private static int hydrationColor(double value) {
-        if (value < 20.0D) return 0xFF5555;
-        if (value < 45.0D) return 0xFFAA00;
-        return HumanHudClientConfig.hudTheme().hydrationColor;
-    }
-
-    private static int temperatureColor(double value) {
-        if (value < 35.5D) return 0x55AAFF;
-        if (value > 38.2D) return 0xFFAA00;
-        return HumanHudClientConfig.hudTheme().temperatureColor;
-    }
-
-    private static int fatigueColor(double value) {
-        if (value > 80.0D) return 0xFF5555;
-        if (value > 55.0D) return 0xFFAA00;
-        return HumanHudClientConfig.hudTheme().fatigueColor;
-    }
-
-    private static int airQualityColor(double value) {
-        if (value < 15.0D) return 0xFF5555;
-        if (value < 35.0D) return 0xFFAA00;
-        return HumanHudClientConfig.hudTheme().hydrationColor;
-    }
-
-    private static String hudLabel(String key, double value, boolean decimal) {
-        String label = Component.translatable(key).getString();
-        if (!HumanHudClientConfig.showNumericValues()) {
-            return label;
-        }
-        String rendered = decimal
-                ? String.format(java.util.Locale.ROOT, "%.1f", value)
-                : Long.toString(Math.round(value));
-        return label + " " + rendered;
     }
 }

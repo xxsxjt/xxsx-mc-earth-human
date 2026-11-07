@@ -2,8 +2,12 @@ package com.xxsx.earthhuman;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.effect.MobEffect;
@@ -59,7 +63,9 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
             player.sendOverlayMessage(Component.translatable("message.earth_human.care.no_effect"));
             return InteractionResult.FAIL;
         }
-        return ItemUtils.startUsingInstantly(level, player, hand);
+        player.swing(hand, true);
+        ItemUtils.startUsingInstantly(level, player, hand);
+        return InteractionResult.SUCCESS;
     }
 
     @Override
@@ -70,6 +76,9 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
                 return stack;
             }
             applyStatusEffects(player, stack);
+        }
+        if (entity instanceof Player player) {
+            player.swing(player.getUsedItemHand(), true);
         }
 
         if (entity instanceof Player player && !player.getAbilities().instabuild) {
@@ -96,6 +105,7 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
             player.addEffect(effect.create());
         }
         Component bodyTreatment = applyBodyTreatment(player, stack.getItem());
+        emitConsumableFeedback(player, stack.getItem());
         status.save(player);
         HumanNetwork.sync(player, status);
         player.sendSystemMessage(Component.translatable(
@@ -136,6 +146,33 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
             }
         }
         return false;
+    }
+
+    private void emitConsumableFeedback(ServerPlayer player, Item item) {
+        if (item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()) {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.PLAYERS, 0.90F, 0.95F);
+        } else if (item == EarthHumanItems.SIMPLE_BANDAGE.get() || item == EarthHumanItems.STERILE_BANDAGE.get()) {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 0.85F, 1.15F);
+        } else if (item == EarthHumanItems.BASIC_FIRST_AID_KIT.get()) {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_GENERIC.value(), SoundSource.PLAYERS, 0.90F, 1.10F);
+        } else if (animation == ItemUseAnimation.DRINK) {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.GENERIC_DRINK.value(), SoundSource.PLAYERS, 0.85F, 1.0F);
+        } else {
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.80F, 1.05F);
+        }
+        if (player.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.HEART,
+                    player.getX(), player.getY() + 1.2D, player.getZ(),
+                    isMedicalItem(item) ? 4 : 2, 0.30D, 0.25D, 0.30D, 0.02D);
+            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    player.getX(), player.getY() + 1.0D, player.getZ(),
+                    5, 0.35D, 0.30D, 0.35D, 0.02D);
+        }
     }
 
     private static boolean isMedicalItem(Item item) {

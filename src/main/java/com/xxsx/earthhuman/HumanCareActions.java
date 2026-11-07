@@ -1,9 +1,14 @@
 package com.xxsx.earthhuman;
 
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.item.ItemStack;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
 
@@ -74,6 +79,7 @@ public final class HumanCareActions {
         data.putString(ACTIVE_ITEM_ID, itemId(selectedStack));
         data.putInt(ACTIVE_COMPONENTS_HASH, selectedStack.getComponents().hashCode());
         data.putLong(FINISH_TICK, now + action.durationTicks);
+        player.swing(InteractionHand.MAIN_HAND, true);
         player.sendSystemMessage(Component.translatable(
                 "message.earth_human.care.started",
                 Component.translatable(action.titleKey()),
@@ -118,8 +124,13 @@ public final class HumanCareActions {
 
         boolean applied = apply(player, action, stack);
         if (applied) {
+            boolean wasConsumable = stack.getItem() instanceof StatusConsumableItem;
             consumeOne(player, stack);
             player.getInventory().setChanged();
+            player.swing(InteractionHand.MAIN_HAND, true);
+            if (!wasConsumable) {
+                emitCareFeedback(player, action);
+            }
             player.sendSystemMessage(Component.translatable(
                     "message.earth_human.care.completed",
                     Component.translatable(action.titleKey())));
@@ -240,7 +251,31 @@ public final class HumanCareActions {
         status.save(player);
         body.save(player);
         HumanNetwork.sync(player, status);
+        HumanNetwork.syncBody(player, body);
         return changed;
+    }
+
+    public static void emitCareFeedback(ServerPlayer player, CareAction action) {
+        switch (action) {
+            case HYDRATE -> player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.GENERIC_DRINK.value(), SoundSource.PLAYERS, 0.85F, 1.0F);
+            case BANDAGE -> player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.WOOL_PLACE, SoundSource.PLAYERS, 0.85F, 1.15F);
+            case SPLINT -> player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_LEATHER.value(), SoundSource.PLAYERS, 0.90F, 0.95F);
+            case FIRST_AID -> player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.ARMOR_EQUIP_GENERIC.value(), SoundSource.PLAYERS, 0.90F, 1.10F);
+            case WARM, COOL -> player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.WOOL_STEP, SoundSource.PLAYERS, 0.80F, 1.05F);
+        }
+        if (player.level() instanceof ServerLevel serverLevel) {
+            serverLevel.sendParticles(ParticleTypes.HEART,
+                    player.getX(), player.getY() + 1.2D, player.getZ(),
+                    4, 0.30D, 0.25D, 0.30D, 0.02D);
+            serverLevel.sendParticles(ParticleTypes.HAPPY_VILLAGER,
+                    player.getX(), player.getY() + 1.0D, player.getZ(),
+                    6, 0.35D, 0.30D, 0.35D, 0.02D);
+        }
     }
 
     private static boolean changeStatus(HumanStatus status, double hydration, double temperature, double fatigue) {

@@ -3,9 +3,13 @@ package com.xxsx.earthhuman.client;
 import com.xxsx.earthhuman.BodyPart;
 import com.xxsx.earthhuman.CareAction;
 import com.xxsx.earthhuman.EarthHumanItems;
+import com.xxsx.earthhuman.ExerciseAction;
 import com.xxsx.earthhuman.HumanBodySyncPayload;
 import com.xxsx.earthhuman.HumanCareStatePayload;
+import com.xxsx.earthhuman.HumanExerciseSessionPayload;
 import com.xxsx.earthhuman.HumanStatus;
+import com.xxsx.earthhuman.HumanTrainingSyncPayload;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractSliderButton;
@@ -45,8 +49,10 @@ public class EarthHumanStatusScreen extends Screen {
 
     private final Screen parent;
     private final Map<CareAction, Button> careButtons = new EnumMap<>(CareAction.class);
+    private final Map<ExerciseAction, Button> exerciseButtons = new EnumMap<>(ExerciseAction.class);
     private int tab;
     private Button cancelCareButton;
+    private Button stopExerciseButton;
 
     public EarthHumanStatusScreen(Screen parent, int initialTab) {
         super(Component.translatable("screen.earth_human.status.title"));
@@ -58,11 +64,15 @@ public class EarthHumanStatusScreen extends Screen {
     @Override
     protected void init() {
         careButtons.clear();
+        exerciseButtons.clear();
         cancelCareButton = null;
+        stopExerciseButton = null;
         addTabButtons();
 
         if (tab == TAB_OVERVIEW) {
             addOverviewButtons();
+        } else if (tab == TAB_BODY) {
+            addBodyExerciseButtons();
         } else if (tab == TAB_CARE) {
             addCareButtons();
         } else if (tab == TAB_SETTINGS) {
@@ -76,7 +86,9 @@ public class EarthHumanStatusScreen extends Screen {
 
     @Override
     public void tick() {
-        if (tab == TAB_CARE) {
+        if (tab == TAB_BODY) {
+            updateBodyExerciseButtons();
+        } else if (tab == TAB_CARE) {
             updateCareButtons();
         }
     }
@@ -162,6 +174,62 @@ public class EarthHumanStatusScreen extends Screen {
         addRenderableWidget(Button.builder(Component.translatable("screen.earth_human.status.open_care"), b -> switchTab(TAB_CARE))
                 .bounds(x + width + 6, y, width, 18)
                 .build());
+    }
+
+    private void addBodyExerciseButtons() {
+        int x = contentLeft();
+        int totalW = contentWidth();
+        int gap = 4;
+        int count = BodyPartScreen.PRIMARY_EXERCISES.length + 1;
+        int btnW = (totalW - gap * (count - 1)) / count;
+        int btnY = bodyExerciseBarY();
+
+        for (int i = 0; i < BodyPartScreen.PRIMARY_EXERCISES.length; i++) {
+            ExerciseAction action = BodyPartScreen.PRIMARY_EXERCISES[i];
+            int bx = x + i * (btnW + gap);
+            Button btn = addRenderableWidget(Button.builder(
+                            Component.translatable(action.translationKey()),
+                            b -> EarthHumanClient.requestExerciseAction(action))
+                    .bounds(bx, btnY, btnW, 18)
+                    .tooltip(Tooltip.create(Component.translatable("screen.earth_human.cultivation_hub.exercise_tip", Component.translatable(action.translationKey()))))
+                    .build());
+            exerciseButtons.put(action, btn);
+        }
+        int stopX = x + BodyPartScreen.PRIMARY_EXERCISES.length * (btnW + gap);
+        stopExerciseButton = addRenderableWidget(Button.builder(
+                        Component.translatable("exercise.earth_human.stop"),
+                        b -> EarthHumanClient.stopExerciseAction())
+                .bounds(stopX, btnY, contentRight() - stopX, 18)
+                .tooltip(Tooltip.create(Component.translatable("screen.earth_human.status.body.stop_exercise.tip")))
+                .build());
+        updateBodyExerciseButtons();
+    }
+
+    private void updateBodyExerciseButtons() {
+        HumanExerciseSessionPayload activeExercise = EarthHumanClient.syncedExercise();
+        boolean anyActive = activeExercise != null && activeExercise.active();
+        for (Map.Entry<ExerciseAction, Button> entry : exerciseButtons.entrySet()) {
+            ExerciseAction action = entry.getKey();
+            Button btn = entry.getValue();
+            boolean isCurrent = anyActive && action.id.equals(activeExercise.actionId());
+            if (isCurrent) {
+                btn.setMessage(Component.literal("● ").append(Component.translatable(action.translationKey())).withStyle(ChatFormatting.GOLD));
+            } else {
+                btn.setMessage(Component.translatable(action.translationKey()));
+            }
+        }
+        if (stopExerciseButton != null) {
+            stopExerciseButton.active = anyActive;
+            if (anyActive) {
+                stopExerciseButton.setMessage(Component.translatable("exercise.earth_human.stop").withStyle(ChatFormatting.RED));
+            } else {
+                stopExerciseButton.setMessage(Component.translatable("exercise.earth_human.stop"));
+            }
+        }
+    }
+
+    private int bodyExerciseBarY() {
+        return panelTop() + panelHeight() - 54;
     }
 
     private void addCareButtons() {
@@ -301,30 +369,34 @@ public class EarthHumanStatusScreen extends Screen {
         int x = contentLeft();
         int y = contentTop();
         HumanBodySyncPayload body = EarthHumanClient.syncedBody();
+        HumanTrainingSyncPayload training = EarthHumanClient.syncedTraining();
+        HumanExerciseSessionPayload exercise = EarthHumanClient.syncedExercise();
         drawSectionHeading(g, x, y, "screen.earth_human.status.body.heading");
 
         int figureWidth = compactWidth() ? 74 : 104;
-        int figureTop = y + (compactHeight() ? 20 : 16);
-        int figureHeight = compactHeight() ? 114 : panelHeight() - 106;
+        int figureTop = y + 16;
+        int exBarY = bodyExerciseBarY();
+        int figureHeight = Math.max(82, exBarY - figureTop - 6);
         g.fill(x, figureTop, x + figureWidth, figureTop + figureHeight, 0xB0141A1C);
         g.outline(x, figureTop, figureWidth, figureHeight, ACCENT_DARK);
         drawDiagnosticCorners(g, x, figureTop, figureWidth, figureHeight);
-        double bodyScale = compactHeight() ? 1.35D : 1.75D;
+        double bodyScale = compactHeight() ? 1.10D : 1.45D;
         BodyHudRenderer.draw(g, body, x + (figureWidth - BodyHudRenderer.width(bodyScale)) / 2,
-                y + (compactHeight() ? 26 : 24), bodyScale, 1.0D);
+                figureTop + 6, bodyScale, 1.0D);
         g.centeredText(font,
                 fit(Component.translatable("screen.earth_human.status.body.figure_hint"), figureWidth - 8),
                 x + figureWidth / 2, figureTop + figureHeight - 13, MUTED);
 
         int barsX = x + figureWidth + 12;
         int barsWidth = contentRight() - barsX;
-        int rowY = y + (compactHeight() ? 18 : 15);
+        int rowY = figureTop;
         int rowCount = BodyPart.values().length + 2;
-        int rowStep = compactHeight() ? 18 : Math.max(19, (figureHeight - 1) / rowCount);
+        int rowStep = Math.max(17, figureHeight / rowCount);
         for (BodyPart part : BodyPart.values()) {
             double ratio = body.value(part);
+            int lvl = training.level(part);
             drawMeter(g, barsX, rowY, barsWidth, part.translationKey(), ratio,
-                    Math.round(ratio * 100.0D) + "%", bodyColor(ratio));
+                    "Lv." + lvl + "  " + Math.round(ratio * 100.0D) + "%", bodyColor(ratio));
             rowY += rowStep;
         }
         double legCondition = Math.max(0.0D, Math.min(1.0D, 1.0D - body.legInjury()));
@@ -334,6 +406,20 @@ public class EarthHumanStatusScreen extends Screen {
         double handCondition = Math.max(0.0D, Math.min(1.0D, 1.0D - body.rightHandInjury()));
         drawMeter(g, barsX, rowY, barsWidth, "screen.earth_human.status.body.right_hand_injury",
                 handCondition, Math.round(handCondition * 100.0D) + "%", bodyColor(handCondition));
+
+        // Highlight border around the currently active exercise button
+        if (exercise != null && exercise.active()) {
+            ExerciseAction activeAct = ExerciseAction.byId(exercise.actionId());
+            Button activeBtn = activeAct == null ? null : exerciseButtons.get(activeAct);
+            if (activeBtn != null) {
+                g.outline(activeBtn.getX() - 1, activeBtn.getY() - 1,
+                        activeBtn.getWidth() + 2, activeBtn.getHeight() + 2, 0xFFFFD56B);
+            }
+            String activeStatus = String.format(Locale.ROOT, "%s (%.1fs)",
+                    activeAct != null ? Component.translatable(activeAct.translationKey()).getString() : exercise.actionId(),
+                    exercise.remainingTicks() / 20.0D);
+            g.text(font, activeStatus, contentRight() - font.width(activeStatus), y + 6, 0xFFFFD56B, false);
+        }
     }
 
     private void drawCare(GuiGraphicsExtractor g) {
@@ -683,12 +769,6 @@ public class EarthHumanStatusScreen extends Screen {
         if (ratio <= 0.01D) return 0xFF080A0A;
         if (ratio < 0.30D) return DANGER;
         if (ratio < 0.65D) return WARNING;
-        return ACCENT;
-    }
-
-    private static int airQualityColor(double value) {
-        if (value < 15.0D) return DANGER;
-        if (value < 35.0D) return WARNING;
         return ACCENT;
     }
 

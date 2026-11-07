@@ -373,5 +373,16 @@
   "lore.earth_human.som.martial_somatics": "Martial Somatics: Iron Fist",
   "lore.earth_human.som.martial_somatics.desc": "Completely prevents bare-hand rock mining injuries and raises somatic floor to 2.6x.",
   "lore.earth_human.som.fivefold_peak": "Fivefold Peak Human Somatics",
-  "lore.earth_human.som.fivefold_peak.desc": "Reach 5.0x Peak Human limits: up to 100 Max HP (50 hearts), +7.0 melee damage, 5.0x mining speed, 15m safe fall, and +80% knockback resistance!"
+  "lore.earth_human.som.fivefold_peak.desc": "Reach 5.0x Peak Human limits: up to 100 Max HP (50 hearts), +7.0 melee damage, 5.0x mining speed, 15m safe fall, and +80% knockback resistance!",
+  "exercise.earth_human.sit_up": "Sit-ups",
+  "exercise.earth_human.pull_up": "Pull-ups",
+  "exercise.earth_human.stop": "Stop Training",
+  "hud.earth_human.exercise.active": "Training",
+  "message.earth_human.training.stopped": "Stopped active exercise session.",
+  "screen.earth_human.status.body.stop_exercise.tip": "Immediately stop the active exercise session",
+  "screen.earth_human.cultivation_hub.theology_badge": "✞ Piety %s/100 · %s",
+  "screen.earth_human.cultivation_hub.theology.blessed": "Blessed Grace Active",
+  "screen.earth_human.cultivation_hub.theology.serenity": "Serenity Prayer Active",
+  "screen.earth_human.cultivation_hub.theology.ready": "Ready to Pray",
+  "screen.earth_human.cultivation_hub.card.the.active_desc": "Piety: %s/100 (%s). Preach, build Sanctum, and channel Exorcism & Blessed Grace."
 }

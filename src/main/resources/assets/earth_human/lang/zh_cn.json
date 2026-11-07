@@ -373,5 +373,16 @@
   "lore.earth_human.som.martial_somatics": "炼筋锻骨·徒手碎岩",
   "lore.earth_human.som.martial_somatics.desc": "皮肉筋骨如精铁百炼，空手挖掘岩石矿床彻底免除右手挫伤，体魄保底达 2.6x。",
   "lore.earth_human.som.fivefold_peak": "极道肉身·五倍常人",
-  "lore.earth_human.som.fivefold_peak.desc": "登临凡人生物力学极境（最高 5.0x 强度）：最大生命值高达 100 点（50 颗心）、近战攻击 +7.0、挖掘速度 5.0x、安全跌落 15 格、抗击退 +80%！"
+  "lore.earth_human.som.fivefold_peak.desc": "登临凡人生物力学极境（最高 5.0x 强度）：最大生命值高达 100 点（50 颗心）、近战攻击 +7.0、挖掘速度 5.0x、安全跌落 15 格、抗击退 +80%！",
+  "exercise.earth_human.sit_up": "仰卧起坐",
+  "exercise.earth_human.pull_up": "引体向上",
+  "exercise.earth_human.stop": "停止锻炼",
+  "hud.earth_human.exercise.active": "锻炼中",
+  "message.earth_human.training.stopped": "已停止当前锻炼动作。",
+  "screen.earth_human.status.body.stop_exercise.tip": "立即停止当前正在进行的锻体训练动作",
+  "screen.earth_human.cultivation_hub.theology_badge": "✞ 虔诚 %s/100 · %s",
+  "screen.earth_human.cultivation_hub.theology.blessed": "祝祷恩宠生效中",
+  "screen.earth_human.cultivation_hub.theology.serenity": "宁静祷告生效中",
+  "screen.earth_human.cultivation_hub.theology.ready": "可祝祷/布道",
+  "screen.earth_human.cultivation_hub.card.the.active_desc": "虔诚度：%s/100（%s）。布道洗礼、积累圣所值，施放驱魔圣光与祝圣恩宠。"
 }

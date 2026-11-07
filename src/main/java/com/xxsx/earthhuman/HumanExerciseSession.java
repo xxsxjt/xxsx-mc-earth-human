@@ -1,9 +1,14 @@
 package com.xxsx.earthhuman;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.level.block.state.BlockState;
 
 import java.util.Locale;
@@ -34,8 +39,17 @@ public final class HumanExerciseSession {
         }
         CompoundTag data = player.getPersistentData();
         if (data.contains(ACTIVE_ACTION)) {
-            player.sendSystemMessage(Component.translatable("message.earth_human.training.station_busy"));
-            return false;
+            ExerciseAction current = ExerciseAction.byId(data.getString(ACTIVE_ACTION).orElse(""));
+            if (current == action) {
+                cancel(player);
+                return true;
+            }
+            if (pos == null) {
+                clear(player);
+            } else {
+                player.sendSystemMessage(Component.translatable("message.earth_human.training.station_busy"));
+                return false;
+            }
         }
         HumanTrainingStatus training = HumanTrainingStatus.get(player);
         if (!training.canManualExercise(player, COOLDOWN_TICKS)) {
@@ -46,10 +60,11 @@ public final class HumanExerciseSession {
         data.putBoolean(HAS_STATION, pos != null);
         data.putLong(STATION_POS, (pos != null ? pos : player.blockPosition()).asLong());
         data.putLong(FINISH_TICK, player.level().getGameTime() + action.durationTicks);
+        player.swing(InteractionHand.MAIN_HAND, true);
         sync(player, action, action.durationTicks);
         player.sendSystemMessage(Component.translatable(
                 "message.earth_human.training.station_started",
-                action.displayName(),
+                Component.translatable(action.translationKey()),
                 String.format(Locale.ROOT, "%.1f", action.durationTicks / 20.0D)));
         return true;
     }
@@ -86,6 +101,18 @@ public final class HumanExerciseSession {
         long now = player.level().getGameTime();
         long finish = data.getLong(FINISH_TICK).orElse(now);
         if (now < finish) {
+            if (now % 8L == 0L && player.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.SPLASH,
+                        player.getX(), player.getY() + 1.1D, player.getZ(),
+                        2, 0.22D, 0.18D, 0.22D, 0.02D);
+                serverLevel.sendParticles(ParticleTypes.CLOUD,
+                        player.getX(), player.getY() + 1.45D, player.getZ(),
+                        1, 0.12D, 0.08D, 0.12D, 0.008D);
+            }
+            if (now % 14L == 0L) {
+                player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                        SoundEvents.PLAYER_BREATH, SoundSource.PLAYERS, 0.35F, 1.10F);
+            }
             if (now % 10L == 0L) {
                 sync(player, action, (int) Math.max(0L, finish - now));
             }
@@ -98,6 +125,7 @@ public final class HumanExerciseSession {
     public static void cancel(ServerPlayer player) {
         if (player.getPersistentData().contains(ACTIVE_ACTION)) {
             clear(player);
+            player.sendOverlayMessage(Component.translatable("message.earth_human.training.stopped"));
         }
     }
 

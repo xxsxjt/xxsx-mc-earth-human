@@ -1,13 +1,15 @@
 package com.xxsx.earthhuman;
 
-import net.minecraft.network.chat.Component;
-
 import java.util.Locale;
 
 public enum ExerciseAction {
     PUSH_UP("push_up", 3.2D, 16.0D, 4.5D, 40,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
     SQUAT("squat", 3.0D, 15.0D, 4.0D, 44,
+            new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
+    SIT_UP("sit_up", 3.0D, 14.5D, 3.9D, 40,
+            new BodyPart[]{BodyPart.TORSO}),
+    PULL_UP("pull_up", 3.6D, 17.5D, 4.8D, 44,
             new BodyPart[]{BodyPart.LIMBS, BodyPart.TORSO}),
     CORE_TRAINING("core", 2.8D, 14.0D, 3.8D, 40,
             new BodyPart[]{BodyPart.TORSO}),
@@ -34,12 +36,21 @@ public enum ExerciseAction {
         this.parts = parts;
     }
 
-    public Component displayName() {
-        return Component.translatable("exercise.earth_human." + id);
+    public String translationKey() {
+        return "exercise.earth_human." + id;
     }
 
     public static ExerciseAction byId(String value) {
-        String normalized = value == null ? "" : value.toLowerCase(Locale.ROOT);
+        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+        if ("pushup".equals(normalized) || "push-up".equals(normalized)) {
+            return PUSH_UP;
+        }
+        if ("situp".equals(normalized) || "sit-up".equals(normalized)) {
+            return SIT_UP;
+        }
+        if ("pullup".equals(normalized) || "pull-up".equals(normalized)) {
+            return PULL_UP;
+        }
         for (ExerciseAction action : values()) {
             if (action.id.equals(normalized)) {
                 return action;

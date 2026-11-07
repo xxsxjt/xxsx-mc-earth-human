@@ -1,10 +1,18 @@
 package com.xxsx.earthhuman;
 
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.block.state.BlockState;
 
 /** Server-authoritative entry point for deterministic core injuries. */
 public final class HumanInjuryService {
@@ -14,6 +22,31 @@ public final class HumanInjuryService {
             EarthHuman.MODID + ".movement.last_bare_hand_hint_tick";
 
     private HumanInjuryService() {
+    }
+
+    public static boolean isHardBlockRequiringTool(BlockState state, BlockGetter level, BlockPos pos) {
+        if (state == null || level == null || pos == null) {
+            return false;
+        }
+        float hardness = state.getDestroySpeed(level, pos);
+        if (hardness < 1.5F) {
+            return false;
+        }
+        return state.requiresCorrectToolForDrops() || state.is(BlockTags.MINEABLE_WITH_PICKAXE);
+    }
+
+    @SuppressWarnings("deprecation")
+    public static boolean isBareHandHardBlockMining(ServerPlayer player, BlockState state, BlockPos pos) {
+        if (player == null || state == null || pos == null) {
+            return false;
+        }
+        if (!isHardBlockRequiringTool(state, player.level(), pos)) {
+            return false;
+        }
+        if (player.getMainHandItem().isEmpty()) {
+            return true;
+        }
+        return !player.hasCorrectToolForDrops(state) && player.getDestroySpeed(state, pos) <= 1.05F;
     }
 
     public static boolean applyCoreDamage(ServerPlayer player, HumanBodyStatus body,
@@ -35,7 +68,7 @@ public final class HumanInjuryService {
     }
 
     public static boolean applyBareHandHardMining(ServerPlayer player, HumanBodyStatus body) {
-        if (player == null || body == null || !player.getMainHandItem().isEmpty()) {
+        if (player == null || body == null) {
             return false;
         }
         HumanTrainingStatus training = HumanTrainingStatus.get(player);
@@ -63,13 +96,20 @@ public final class HumanInjuryService {
             data.putLong(LAST_BARE_HAND_HINT_TICK, now);
             body.save(player);
             HumanNetwork.syncBody(player, body);
+            player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.PLAYER_HURT, SoundSource.PLAYERS, 0.45F, 1.15F);
+            if (player.level() instanceof ServerLevel serverLevel) {
+                serverLevel.sendParticles(ParticleTypes.DAMAGE_INDICATOR,
+                        player.getX(), player.getY() + 1.0D, player.getZ(),
+                        2, 0.20D, 0.15D, 0.20D, 0.02D);
+            }
             player.sendOverlayMessage(Component.translatable("message.earth_human.injury.right_hand.bare_hand_hint"));
         }
         return changed;
     }
 
     public static boolean applyBareHandHardBlockBroken(ServerPlayer player, HumanBodyStatus body) {
-        if (player == null || body == null || !player.getMainHandItem().isEmpty()) {
+        if (player == null || body == null) {
             return false;
         }
         HumanTrainingStatus training = HumanTrainingStatus.get(player);
@@ -84,8 +124,13 @@ public final class HumanInjuryService {
             body.warnSpecificInjury(player, "right_hand", before, body.rightHandInjury());
         }
         changed |= body.damage(BodyPart.LIMBS, 1.4D * somaticsFactor) > 0.0001D;
-        if (player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+        player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
+                SoundEvents.PLAYER_HURT, SoundSource.PLAYERS, 0.65F, 1.05F);
+        if (player.level() instanceof ServerLevel serverLevel) {
             player.hurtServer(serverLevel, serverLevel.damageSources().generic(), 1.0F);
+            serverLevel.sendParticles(ParticleTypes.DAMAGE_INDICATOR,
+                    player.getX(), player.getY() + 1.0D, player.getZ(),
+                    3, 0.25D, 0.20D, 0.25D, 0.03D);
         }
         player.sendOverlayMessage(Component.translatable("message.earth_human.injury.right_hand.bare_hand_hint"));
         return changed;

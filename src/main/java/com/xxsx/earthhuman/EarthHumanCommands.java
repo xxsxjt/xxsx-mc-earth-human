@@ -35,6 +35,9 @@ public final class EarthHumanCommands {
                         .executes(ctx -> exerciseHelp(ctx.getSource()))
                         .then(Commands.literal("push_up").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.PUSH_UP)))
                         .then(Commands.literal("squat").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.SQUAT)))
+                        .then(Commands.literal("sit_up").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.SIT_UP)))
+                        .then(Commands.literal("pull_up").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.PULL_UP)))
+                        .then(Commands.literal("stop").executes(ctx -> stopExercise(ctx.getSource())))
                         .then(Commands.literal("core").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.CORE_TRAINING)))
                         .then(Commands.literal("stretch").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.STRETCH)))
                         .then(Commands.literal("dumbbell").executes(ctx -> exercise(ctx.getSource(), ExerciseAction.DUMBBELL_CURL)))
@@ -246,6 +249,16 @@ public final class EarthHumanCommands {
             return 0;
         }
         return HumanExercise.apply(player, action, false) ? 1 : 0;
+    }
+
+    private static int stopExercise(CommandSourceStack source) {
+        ServerPlayer player = source.getPlayer();
+        if (player == null) {
+            source.sendFailure(Component.translatable("message.earth_human.players_only"));
+            return 0;
+        }
+        HumanExerciseSession.cancel(player);
+        return 1;
     }
 
     private static int setHydration(CommandSourceStack source, double value) {

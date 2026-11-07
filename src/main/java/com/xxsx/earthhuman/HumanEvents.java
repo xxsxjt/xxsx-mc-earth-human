@@ -131,14 +131,21 @@ public final class HumanEvents {
         HumanExercise.recover(player, player.isSleeping(), resting && !recentExertion);
         boolean wellFedAndFullHp = player.getFoodData().getFoodLevel() >= 16
                 && player.getHealth() >= player.getMaxHealth() - 0.1F;
+        boolean adequatelyFed = player.getFoodData().getFoodLevel() >= 14;
         long nowGameTime = player.level().getGameTime();
         boolean recentlyDamaged = nowGameTime - player.getPersistentData().getLongOr(LAST_COMBAT_DAMAGE_TIME, -1_000_000L) < 160L;
         double somaticsRecoveryMult = SomaticsLoreBridge.hasTendonAndBone(player) ? 1.8D : 1.0D;
         double baseInjuryRecovery = recentlyDamaged ? 0.0D : (player.isSleeping() ? 0.045D : (resting ? 0.014D : 0.004D));
+        if (adequatelyFed && !recentlyDamaged) {
+            baseInjuryRecovery += 0.012D;
+        }
         if (wellFedAndFullHp && !recentlyDamaged) {
             baseInjuryRecovery += 0.025D;
         }
         double basePartRecovery = recentlyDamaged ? 0.0D : (player.isSleeping() ? 0.60D : (resting ? 0.20D : 0.05D));
+        if (adequatelyFed && !recentlyDamaged) {
+            basePartRecovery += 0.14D;
+        }
         if (wellFedAndFullHp && !recentlyDamaged) {
             basePartRecovery += 0.38D;
         }
@@ -356,11 +363,10 @@ public final class HumanEvents {
             return;
         }
         HumanBodyStatus body = HumanBodyStatus.get(player);
+        BlockPos targetPos = event.getPosition().orElse(player.blockPosition());
         if (EarthHumanConfig.bodyHealthEnabled()) {
             body.spreadFromUse(player, BodyPart.LIMBS, 0.18D);
-            if (player.getMainHandItem().isEmpty()
-                    && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)
-                    && event.getState().getDestroySpeed(player.level(), event.getPosition().orElse(player.blockPosition())) >= 1.2F) {
+            if (HumanInjuryService.isBareHandHardBlockMining(player, event.getState(), targetPos)) {
                 if (HumanInjuryService.applyBareHandHardMining(player, body)) {
                     player.getPersistentData().putLong(LAST_COMBAT_DAMAGE_TIME, player.level().getGameTime());
                     body.applyFunctionalEffects(player);
@@ -399,9 +405,7 @@ public final class HumanEvents {
         if (!EarthHumanConfig.bodyHealthEnabled()) {
             return;
         }
-        if (player.getMainHandItem().isEmpty()
-                && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)
-                && event.getState().getDestroySpeed(player.level(), event.getPos()) >= 1.2F) {
+        if (HumanInjuryService.isBareHandHardBlockMining(player, event.getState(), event.getPos())) {
             HumanBodyStatus body = HumanBodyStatus.get(player);
             if (HumanInjuryService.applyBareHandHardBlockBroken(player, body)) {
                 player.getPersistentData().putLong(LAST_COMBAT_DAMAGE_TIME, player.level().getGameTime());

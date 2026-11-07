@@ -1,7 +1,9 @@
 package com.xxsx.earthhuman;
 
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.neoforged.fml.ModList;
 
 import java.lang.reflect.Method;
@@ -51,6 +53,61 @@ public final class SomaticsLoreBridge {
 
     public static boolean isTheologyLoaded() {
         return ModList.get() != null && ModList.get().isLoaded("earth_theology");
+    }
+
+    /**
+     * Reads the player's Piety (0..100) from earth_theology's synced PietyAttachment when installed.
+     */
+    public static int queryTheologyPiety(Player player) {
+        if (player == null || !isTheologyLoaded()) {
+            return 0;
+        }
+        try {
+            Class<?> cls = Class.forName("com.xxsx.earththeology.EarthTheology");
+            Object pietyHolder = cls.getField("PIETY").get(null);
+            Method getAttachmentType = pietyHolder.getClass().getMethod("get");
+            Object attachmentType = getAttachmentType.invoke(pietyHolder);
+            Method getData = net.neoforged.neoforge.attachment.AttachmentHolder.class.getMethod(
+                    "getData", net.neoforged.neoforge.attachment.AttachmentType.class);
+            Object attachment = getData.invoke(player, attachmentType);
+            if (attachment != null) {
+                Method valueMethod = attachment.getClass().getMethod("value");
+                Object val = valueMethod.invoke(attachment);
+                if (val instanceof Number number) {
+                    return number.intValue();
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return 0;
+    }
+
+    /**
+     * Returns true if the player currently has earth_theology:blessed active.
+     */
+    public static boolean hasTheologyBlessing(Player player) {
+        return hasTheologyEffect(player, "blessed");
+    }
+
+    /**
+     * Returns true if the player currently has earth_theology:serenity active.
+     */
+    public static boolean hasTheologySerenity(Player player) {
+        return hasTheologyEffect(player, "serenity");
+    }
+
+    private static boolean hasTheologyEffect(Player player, String path) {
+        if (player == null || !isTheologyLoaded()) {
+            return false;
+        }
+        try {
+            var holderOpt = BuiltInRegistries.MOB_EFFECT.get(Identifier.fromNamespaceAndPath("earth_theology", path));
+            if (holderOpt.isPresent()) {
+                return player.hasEffect(holderOpt.get());
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
     }
 
     public static int computeUnlockedMask(ServerPlayer player, HumanTrainingStatus training) {

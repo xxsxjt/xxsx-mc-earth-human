@@ -37,7 +37,9 @@ public final class PpeMaskItem extends GuidedItem {
             }
             return InteractionResult.FAIL;
         }
-        return ItemUtils.startUsingInstantly(level, player, hand);
+        player.swing(hand, true);
+        ItemUtils.startUsingInstantly(level, player, hand);
+        return InteractionResult.SUCCESS;
     }
 
     @Override

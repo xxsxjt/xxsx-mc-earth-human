@@ -20,7 +20,9 @@ public final class FieldHealthNoteItem extends GuidedItem {
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        return ItemUtils.startUsingInstantly(level, player, hand);
+        player.swing(hand, true);
+        ItemUtils.startUsingInstantly(level, player, hand);
+        return InteractionResult.SUCCESS;
     }
 
     @Override

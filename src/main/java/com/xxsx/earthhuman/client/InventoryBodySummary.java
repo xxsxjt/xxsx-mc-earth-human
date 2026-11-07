@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.client.event.ScreenEvent;
@@ -87,11 +88,19 @@ final class InventoryBodySummary {
         return mouseX >= bx && mouseX < bx + 54 && mouseY >= by && mouseY < by + 16;
     }
 
+    @SuppressWarnings("removal")
     private static int cultivationButtonX(Screen screen) {
+        if (screen instanceof AbstractContainerScreen<?> container) {
+            return container.getGuiLeft() + container.getXSize() - 56;
+        }
         return (screen.width + 176) / 2 - 56;
     }
 
+    @SuppressWarnings("removal")
     private static int cultivationButtonY(Screen screen) {
+        if (screen instanceof AbstractContainerScreen<?> container) {
+            return Math.max(4, container.getGuiTop() - 19);
+        }
         return Math.max(4, (screen.height - 166) / 2 - 19);
     }
 
