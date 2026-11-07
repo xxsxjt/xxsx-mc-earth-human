@@ -185,6 +185,9 @@ public final class EarthHumanClient {
 
     private static void tickExerciseAnimation(Minecraft minecraft, LocalPlayer player) {
         if (!syncedExercise.active()) {
+            if (exerciseSwingTicker > 0) {
+                player.setShiftKeyDown(false);
+            }
             exerciseSwingTicker = 0;
             return;
         }
@@ -192,8 +195,30 @@ public final class EarthHumanClient {
             return;
         }
         // The station owns the session; the client only supplies the visible reps.
-        if (++exerciseSwingTicker % 8 == 0) {
-            player.swing(InteractionHand.MAIN_HAND);
+        exerciseSwingTicker++;
+        String act = syncedExercise.actionId();
+        boolean deepPose = (exerciseSwingTicker / 6) % 2 == 1;
+        if ("push_up".equals(act) || "squat".equals(act)) {
+            player.setShiftKeyDown(deepPose);
+            player.setXRot(deepPose ? 32.0F : 4.0F);
+            if (exerciseSwingTicker % 6 == 0) {
+                player.swing(exerciseSwingTicker % 12 == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+            }
+            if ("squat".equals(act) && exerciseSwingTicker % 14 == 0 && player.onGround()) {
+                player.jumpFromGround();
+            }
+        } else if ("stretch".equals(act)) {
+            player.setShiftKeyDown(false);
+            player.setXRot(deepPose ? -26.0F : 6.0F);
+            if (exerciseSwingTicker % 8 == 0) {
+                player.swing(exerciseSwingTicker % 16 == 0 ? InteractionHand.MAIN_HAND : InteractionHand.OFF_HAND);
+            }
+        } else {
+            player.setShiftKeyDown(deepPose);
+            player.setXRot(deepPose ? 22.0F : 0.0F);
+            if (exerciseSwingTicker % 7 == 0) {
+                player.swing(InteractionHand.MAIN_HAND);
+            }
         }
     }
 
@@ -237,12 +262,9 @@ public final class EarthHumanClient {
         int firstWidth = 42;
         int secondWidth = 48;
         int thirdWidth = 47;
-        int fourthWidth = 45;
-        boolean compact = graphics.guiWidth() - x < firstWidth + secondWidth + thirdWidth + fourthWidth + 14;
-        int firstRowWidth = firstWidth + secondWidth + thirdWidth + 4;
-        int totalWidth = compact ? firstRowWidth : firstRowWidth + fourthWidth + 2;
-        graphics.fill(x - 2, y - 1, x + totalWidth + 2, y + (compact ? 26 : 12), 0xA8141A1C);
-        graphics.outline(x - 2, y - 1, totalWidth + 2, compact ? 27 : 13, 0xAA52615D);
+        int totalWidth = firstWidth + secondWidth + thirdWidth + 4;
+        graphics.fill(x - 2, y - 1, x + totalWidth + 2, y + 12, 0xA8141A1C);
+        graphics.outline(x - 2, y - 1, totalWidth + 2, 13, 0xAA52615D);
         drawCell(graphics, font, x, y + 1, firstWidth, status.hydration / 100.0D, hydrationColor(status.hydration),
                 hudLabel("hud.earth_human.hydration.short", status.hydration, false));
         drawCell(graphics, font, x + firstWidth + 2, y + 1, secondWidth,
@@ -251,13 +273,8 @@ public final class EarthHumanClient {
         drawCell(graphics, font, x + firstWidth + secondWidth + 4, y + 1, thirdWidth,
                 status.fatigue / 100.0D, fatigueColor(status.fatigue),
                 hudLabel("hud.earth_human.fatigue.short", status.fatigue, false));
-        int airX = compact ? x : x + firstWidth + secondWidth + thirdWidth + 6;
-        int airY = compact ? y + 14 : y + 1;
-        drawCell(graphics, font, airX, airY, fourthWidth,
-                status.airQuality / 100.0D, airQualityColor(status.airQuality),
-                hudLabel("hud.earth_human.air_quality.short", status.airQuality, false));
 
-        minecraft.gui.rightHeight += compact ? ROW_HEIGHT * 2 : ROW_HEIGHT;
+        minecraft.gui.rightHeight += ROW_HEIGHT;
     }
 
     public static void openSettingsScreen() {

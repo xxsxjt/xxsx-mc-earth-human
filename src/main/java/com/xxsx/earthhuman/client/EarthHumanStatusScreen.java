@@ -270,9 +270,6 @@ public class EarthHumanStatusScreen extends Screen {
         drawMeter(g, x, y + 17 + meterStep * 2, meterWidth, "screen.earth_human.status.fatigue",
                 status.fatigue / 100.0D, Math.round(status.fatigue) + "%",
                 vitalColor(status.fatigue / 100.0D, true));
-        drawMeter(g, x, y + 17 + meterStep * 3, meterWidth, "screen.earth_human.status.air_quality",
-                status.airQuality / 100.0D, Math.round(status.airQuality) + "%",
-                airQualityColor(status.airQuality));
 
         int bodyX = x + meterWidth + 12;
         int plateHeight = compactHeight() ? 84 : 96;
@@ -284,7 +281,7 @@ public class EarthHumanStatusScreen extends Screen {
         BodyHudRenderer.draw(g, body, bodyX + (bodyPlateWidth - BodyHudRenderer.width(scale)) / 2,
                 y + 33, scale, 0.95D);
 
-        int activityY = y + 18 + meterStep * 4;
+        int activityY = y + 20 + meterStep * 3;
         g.text(font, fit(Component.translatable("screen.earth_human.status.activity_line",
                 Component.translatable(status.currentActivity.translationKey()), Math.round(status.exertionLoad)), meterWidth),
                 x, activityY, MEDICAL_WHITE, false);
@@ -584,7 +581,6 @@ public class EarthHumanStatusScreen extends Screen {
         if (status.hydration < 35.0D) return Component.translatable("screen.earth_human.status.recommend.hydration");
         if (status.fatigue > 70.0D) return Component.translatable("screen.earth_human.status.recommend.fatigue");
         if (status.exertionLoad > 70.0D) return Component.translatable("screen.earth_human.status.recommend.exertion");
-        if (status.airQuality < 35.0D) return Component.translatable("screen.earth_human.status.recommend.air_quality");
         if (status.bodyTemperature < 35.8D) return Component.translatable("screen.earth_human.status.recommend.cold");
         if (status.bodyTemperature > 38.0D) return Component.translatable("screen.earth_human.status.recommend.hot");
         return Component.translatable("screen.earth_human.status.recommend.ok");

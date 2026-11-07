@@ -16,6 +16,7 @@ public final class HumanExerciseSession {
     private static final String PREFIX = EarthHuman.MODID + ".exercise.";
     private static final String ACTIVE_ACTION = PREFIX + "action";
     private static final String STATION_POS = PREFIX + "station";
+    private static final String HAS_STATION = PREFIX + "has_station";
     private static final String FINISH_TICK = PREFIX + "finish";
     private static final int COOLDOWN_TICKS = 32;
     private static final int MAX_DISTANCE_SQUARED = 6 * 6;
@@ -42,7 +43,8 @@ public final class HumanExerciseSession {
             return false;
         }
         data.putString(ACTIVE_ACTION, action.id);
-        data.putLong(STATION_POS, pos.asLong());
+        data.putBoolean(HAS_STATION, pos != null);
+        data.putLong(STATION_POS, (pos != null ? pos : player.blockPosition()).asLong());
         data.putLong(FINISH_TICK, player.level().getGameTime() + action.durationTicks);
         sync(player, action, action.durationTicks);
         player.sendSystemMessage(Component.translatable(
@@ -67,9 +69,16 @@ public final class HumanExerciseSession {
             return;
         }
         BlockPos pos = BlockPos.of(data.getLong(STATION_POS).orElse(0L));
-        BlockState state = player.level().getBlockState(pos);
-        if (ExerciseStationBlock.actionOf(state) != action
-                || player.blockPosition().distSqr(pos) > MAX_DISTANCE_SQUARED) {
+        boolean hasStation = data.getBooleanOr(HAS_STATION, false);
+        if (hasStation) {
+            BlockState state = player.level().getBlockState(pos);
+            if (ExerciseStationBlock.actionOf(state) != action
+                    || player.blockPosition().distSqr(pos) > MAX_DISTANCE_SQUARED) {
+                clear(player);
+                player.sendSystemMessage(Component.translatable("message.earth_human.training.station_left"));
+                return;
+            }
+        } else if (player.blockPosition().distSqr(pos) > MAX_DISTANCE_SQUARED) {
             clear(player);
             player.sendSystemMessage(Component.translatable("message.earth_human.training.station_left"));
             return;
@@ -83,7 +92,7 @@ public final class HumanExerciseSession {
             return;
         }
         clear(player);
-        HumanExercise.apply(player, action, true);
+        HumanExercise.apply(player, action, hasStation || HumanExercise.hasNearbyEquipment(player));
     }
 
     public static void cancel(ServerPlayer player) {
@@ -96,6 +105,7 @@ public final class HumanExerciseSession {
         CompoundTag data = player.getPersistentData();
         data.remove(ACTIVE_ACTION);
         data.remove(STATION_POS);
+        data.remove(HAS_STATION);
         data.remove(FINISH_TICK);
         HumanNetwork.syncExercise(player, HumanExerciseSessionPayload.IDLE);
     }

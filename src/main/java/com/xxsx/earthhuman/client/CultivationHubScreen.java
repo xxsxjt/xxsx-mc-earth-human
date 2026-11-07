@@ -71,7 +71,10 @@ public final class CultivationHubScreen extends Screen {
             int bx = contentX + i * (btnW + gap);
             addRenderableWidget(Button.builder(
                             Component.translatable("screen.earth_human.cultivation_hub.do_exercise", action.displayName()),
-                            b -> EarthHumanClient.requestExerciseAction(action))
+                            b -> {
+                                Minecraft.getInstance().setScreen(null);
+                                EarthHumanClient.requestExerciseAction(action);
+                            })
                     .bounds(bx, exY, btnW, 20)
                     .tooltip(Tooltip.create(Component.translatable("screen.earth_human.cultivation_hub.exercise_tip", action.displayName())))
                     .build());

@@ -21,8 +21,7 @@ public final class HumanExercise {
             if (context.player() instanceof ServerPlayer player) {
                 ExerciseAction action = ExerciseAction.byId(payload.actionId());
                 if (action != null) {
-                    boolean nearEquipment = hasNearbyEquipment(player);
-                    apply(player, action, nearEquipment);
+                    HumanExerciseSession.start(player, action, null);
                 }
             }
         });

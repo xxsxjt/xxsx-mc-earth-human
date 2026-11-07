@@ -30,6 +30,7 @@ public class EarthHuman {
         NeoForge.EVENT_BUS.addListener(HumanEvents::onLivingDamagePost);
         NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, HumanEvents::onLivingHeal);
         NeoForge.EVENT_BUS.addListener(HumanEvents::onBreakSpeed);
+        NeoForge.EVENT_BUS.addListener(HumanEvents::onBlockBreak);
         NeoForge.EVENT_BUS.addListener(HumanEvents::onAttackEntity);
         NeoForge.EVENT_BUS.addListener(HumanEvents::onRightClickItem);
         NeoForge.EVENT_BUS.addListener(HumanEvents::onRightClickBlock);

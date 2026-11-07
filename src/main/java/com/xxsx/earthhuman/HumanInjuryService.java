@@ -53,11 +53,41 @@ public final class HumanInjuryService {
         boolean changed = applyOutcome(player, body, CoreInjuryPolicy.evaluate(
                 CoreInjuryPolicy.Cause.BARE_HAND_HARD_MINING,
                 0.0D,
-                EarthHumanConfig.bodyDamageMultiplier() * somaticsFactor));
+                EarthHumanConfig.bodyDamageMultiplier() * somaticsFactor * 8.0D));
+        if (now % 15L == 0L) {
+            changed |= body.damage(BodyPart.LIMBS, 0.35D * somaticsFactor) > 0.0001D;
+            body.save(player);
+            HumanNetwork.syncBody(player, body);
+        }
         if (changed && now - data.getLongOr(LAST_BARE_HAND_HINT_TICK, -1000L) >= 40L) {
             data.putLong(LAST_BARE_HAND_HINT_TICK, now);
+            body.save(player);
+            HumanNetwork.syncBody(player, body);
             player.sendOverlayMessage(Component.translatable("message.earth_human.injury.right_hand.bare_hand_hint"));
         }
+        return changed;
+    }
+
+    public static boolean applyBareHandHardBlockBroken(ServerPlayer player, HumanBodyStatus body) {
+        if (player == null || body == null || !player.getMainHandItem().isEmpty()) {
+            return false;
+        }
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        if (SomaticsLoreBridge.hasMartialSomatics(player, training)) {
+            return false;
+        }
+        double somaticsFactor = (SomaticsLoreBridge.hasTendonAndBone(player, training) ? 0.40D : 1.0D)
+                * Math.max(0.25D, 1.0D - training.level(BodyPart.LIMBS) * 0.04D);
+        double before = body.rightHandInjury();
+        boolean changed = body.damageRightHandInjury(0.18D * somaticsFactor) > 0.0001D;
+        if (changed) {
+            body.warnSpecificInjury(player, "right_hand", before, body.rightHandInjury());
+        }
+        changed |= body.damage(BodyPart.LIMBS, 1.4D * somaticsFactor) > 0.0001D;
+        if (player.level() instanceof net.minecraft.server.level.ServerLevel serverLevel) {
+            player.hurtServer(serverLevel, serverLevel.damageSources().generic(), 1.0F);
+        }
+        player.sendOverlayMessage(Component.translatable("message.earth_human.injury.right_hand.bare_hand_hint"));
         return changed;
     }
 

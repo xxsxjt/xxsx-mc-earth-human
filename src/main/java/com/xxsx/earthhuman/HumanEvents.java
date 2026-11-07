@@ -32,6 +32,7 @@ import net.neoforged.neoforge.event.entity.player.CanPlayerSleepEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerWakeUpEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.level.block.BreakBlockEvent;
 import net.neoforged.neoforge.event.tick.PlayerTickEvent;
 
 public final class HumanEvents {
@@ -39,6 +40,7 @@ public final class HumanEvents {
     private static final String LAST_ON_GROUND = MOVEMENT_PREFIX + "last_on_ground";
     private static final String LAST_JUMP_TIME = MOVEMENT_PREFIX + "last_jump_game_time";
     private static final String LAST_TRACKED_HEALTH = MOVEMENT_PREFIX + "last_tracked_health";
+    private static final String LAST_COMBAT_DAMAGE_TIME = MOVEMENT_PREFIX + "last_combat_damage_game_time";
     private static final String SLEEP_PREFIX = EarthHuman.MODID + ".sleep.";
     private static final String SLEEP_ACTIVE = SLEEP_PREFIX + "active";
     private static final String SLEEP_NAP = SLEEP_PREFIX + "nap";
@@ -129,13 +131,15 @@ public final class HumanEvents {
         HumanExercise.recover(player, player.isSleeping(), resting && !recentExertion);
         boolean wellFedAndFullHp = player.getFoodData().getFoodLevel() >= 16
                 && player.getHealth() >= player.getMaxHealth() - 0.1F;
+        long nowGameTime = player.level().getGameTime();
+        boolean recentlyDamaged = nowGameTime - player.getPersistentData().getLongOr(LAST_COMBAT_DAMAGE_TIME, -1_000_000L) < 160L;
         double somaticsRecoveryMult = SomaticsLoreBridge.hasTendonAndBone(player) ? 1.8D : 1.0D;
-        double baseInjuryRecovery = player.isSleeping() ? 0.045D : (resting ? 0.018D : 0.008D);
-        if (wellFedAndFullHp) {
+        double baseInjuryRecovery = recentlyDamaged ? 0.0D : (player.isSleeping() ? 0.045D : (resting ? 0.014D : 0.004D));
+        if (wellFedAndFullHp && !recentlyDamaged) {
             baseInjuryRecovery += 0.025D;
         }
-        double basePartRecovery = player.isSleeping() ? 0.60D : (resting ? 0.22D : 0.08D);
-        if (wellFedAndFullHp) {
+        double basePartRecovery = recentlyDamaged ? 0.0D : (player.isSleeping() ? 0.60D : (resting ? 0.20D : 0.05D));
+        if (wellFedAndFullHp && !recentlyDamaged) {
             basePartRecovery += 0.38D;
         }
         boolean naturallyRecovered = body.recoverNaturalBodyAndInjuries(
@@ -189,16 +193,7 @@ public final class HumanEvents {
         }
 
         if (EarthHumanConfig.airQualityEnabled()) {
-            AirQualityModel.Exposure exposure = sampleAirExposure(player);
-            status.airQuality = AirQualityModel.next(
-                    status.airQuality,
-                    exposure.smoke(),
-                    exposure.dust(),
-                    exposure.underwater(),
-                    exposure.nether(),
-                    PpeMaskItem.filterStrength(player),
-                    EarthHumanConfig.airQualityLossMultiplier(),
-                    EarthHumanConfig.airQualityRecoveryMultiplier());
+            status.airQuality = 100.0D;
         }
 
         warnIfNeeded(player, status);
@@ -273,12 +268,34 @@ public final class HumanEvents {
         if (!Float.isFinite(damage) || damage <= 0.0F) {
             return;
         }
+        player.getPersistentData().putLong(LAST_COMBAT_DAMAGE_TIME, player.level().getGameTime());
         if (!BodyHealthBridgeApi.active()) {
-            if (HumanInjuryService.applyCoreDamage(player, body, event.getSource(), damage)) {
-                body.applyFunctionalEffects(player);
-                body.save(player);
-                HumanNetwork.syncBody(player, body);
+            HumanInjuryService.applyCoreDamage(player, body, event.getSource(), damage);
+            if (!shouldBypassBodySystem(event.getSource())) {
+                double headBefore = body.health(BodyPart.HEAD);
+                body.pullHeadDamageFromVanilla(player);
+                if (isFallLike(event.getSource())) {
+                    applyCompatibleFallDamageToLegs(player, body, damage);
+                } else if (event.getSource().is(HumanDamageTags.FULL_BODY)) {
+                    applyCompatibleFullBodyDamage(player, body, damage);
+                } else {
+                    BodyPart part = chooseDamagedPart(player, event.getSource(), damage);
+                    if (part == BodyPart.HEAD) {
+                        body.warnDirectDamage(player, BodyPart.HEAD, headBefore);
+                    } else {
+                        applyCompatiblePartDamage(player, body, part, damage);
+                        if (part == BodyPart.LIMBS && damage >= 3.0F) {
+                            double beforeLeg = body.legInjury();
+                            if (body.damageLegInjury(damage * 0.04D) > 0.001D) {
+                                body.warnSpecificInjury(player, "leg", beforeLeg, body.legInjury());
+                            }
+                        }
+                    }
+                }
             }
+            body.applyFunctionalEffects(player);
+            body.save(player);
+            HumanNetwork.syncBody(player, body);
             return;
         }
         if (BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
@@ -344,7 +361,10 @@ public final class HumanEvents {
             if (player.getMainHandItem().isEmpty()
                     && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)
                     && event.getState().getDestroySpeed(player.level(), event.getPosition().orElse(player.blockPosition())) >= 1.2F) {
-                HumanInjuryService.applyBareHandHardMining(player, body);
+                if (HumanInjuryService.applyBareHandHardMining(player, body)) {
+                    player.getPersistentData().putLong(LAST_COMBAT_DAMAGE_TIME, player.level().getGameTime());
+                    body.applyFunctionalEffects(player);
+                }
             }
         }
         if (EarthHumanConfig.airQualityEnabled() && event.getState().is(HumanExposureTags.DUST_SOURCES)) {
@@ -370,6 +390,26 @@ public final class HumanEvents {
             event.setNewSpeed((float) (event.getNewSpeed() * somaticsSpeedMult));
         }
         body.save(player);
+    }
+
+    public static void onBlockBreak(BreakBlockEvent event) {
+        if (!(event.getPlayer() instanceof ServerPlayer player) || player.isCreative() || player.isSpectator()) {
+            return;
+        }
+        if (!EarthHumanConfig.bodyHealthEnabled()) {
+            return;
+        }
+        if (player.getMainHandItem().isEmpty()
+                && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)
+                && event.getState().getDestroySpeed(player.level(), event.getPos()) >= 1.2F) {
+            HumanBodyStatus body = HumanBodyStatus.get(player);
+            if (HumanInjuryService.applyBareHandHardBlockBroken(player, body)) {
+                player.getPersistentData().putLong(LAST_COMBAT_DAMAGE_TIME, player.level().getGameTime());
+                body.applyFunctionalEffects(player);
+                body.save(player);
+                HumanNetwork.syncBody(player, body);
+            }
+        }
     }
 
     public static void onAttackEntity(AttackEntityEvent event) {
@@ -571,9 +611,6 @@ public final class HumanEvents {
         } else if (EarthHumanConfig.temperatureEnabled() && status.bodyTemperature > 38.2D) {
             player.sendSystemMessage(Component.translatable("message.earth_human.warning.heat"));
             status.lastWarningGameTime = now;
-        } else if (EarthHumanConfig.airQualityEnabled() && status.airQuality < 35.0D) {
-            player.sendSystemMessage(Component.translatable("message.earth_human.warning.air_quality"));
-            status.lastWarningGameTime = now;
         }
     }
 
@@ -708,13 +745,6 @@ public final class HumanEvents {
             player.causeFoodExhaustion((float) (0.06F * arcana.foodExhaustionMultiplier()));
             if (status.bodyTemperature > 40.5D && player.tickCount % 120 == 0) {
                 player.hurtServer(level, level.damageSources().hotFloor(), 1.0F);
-            }
-        }
-        if (EarthHumanConfig.airQualityEnabled() && status.airQuality < 25.0D) {
-            int amplifier = status.airQuality < 10.0D ? 1 : 0;
-            player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, amplifier, true, false, true));
-            if (status.airQuality < 10.0D && player.tickCount % 120 == 0) {
-                player.causeFoodExhaustion(0.08F);
             }
         }
     }
