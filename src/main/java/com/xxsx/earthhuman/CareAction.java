@@ -8,6 +8,7 @@ import java.util.Locale;
 public enum CareAction {
     HYDRATE("hydrate", HumanCareTags.HYDRATION, 32),
     BANDAGE("bandage", HumanCareTags.BANDAGES, 40),
+    SPLINT("splint", HumanCareTags.SPLINTS, 44),
     FIRST_AID("first_aid", HumanCareTags.FIRST_AID, 60),
     WARM("warm", HumanCareTags.WARMING, 36),
     COOL("cool", HumanCareTags.COOLING, 36);

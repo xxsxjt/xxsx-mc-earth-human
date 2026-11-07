@@ -26,6 +26,18 @@ public final class HumanBodyStatus {
     private static final double BASE_VANILLA_HEALTH = 20.0D;
     private static final net.minecraft.resources.Identifier HEAD_HEALTH_LIMIT_ID =
             EarthHuman.id("head_health_limit");
+    private static final net.minecraft.resources.Identifier FRACTURE_HEALTH_PENALTY_ID =
+            EarthHuman.id("fracture_max_health_penalty");
+    private static final net.minecraft.resources.Identifier SOMATICS_HEALTH_BONUS_ID =
+            EarthHuman.id("somatics_max_health_bonus");
+    private static final net.minecraft.resources.Identifier SOMATICS_ATTACK_BONUS_ID =
+            EarthHuman.id("somatics_attack_damage_bonus");
+    private static final net.minecraft.resources.Identifier SOMATICS_SPEED_BONUS_ID =
+            EarthHuman.id("somatics_movement_speed_bonus");
+    private static final net.minecraft.resources.Identifier SOMATICS_SAFE_FALL_BONUS_ID =
+            EarthHuman.id("somatics_safe_fall_bonus");
+    private static final net.minecraft.resources.Identifier SOMATICS_KNOCKBACK_BONUS_ID =
+            EarthHuman.id("somatics_knockback_resistance_bonus");
 
     private final double[] health = new double[BodyPart.values().length];
     private double vanillaMaxHealth = BASE_VANILLA_HEALTH;
@@ -184,6 +196,18 @@ public final class HumanBodyStatus {
         return legInjury > 0.001D || rightHandInjury > 0.001D;
     }
 
+    public boolean isLegFractured() {
+        return SpecificInjuryMath.isFractured(legInjury);
+    }
+
+    public boolean isRightHandFractured() {
+        return SpecificInjuryMath.isFractured(rightHandInjury);
+    }
+
+    public boolean hasFracture() {
+        return isLegFractured() || isRightHandFractured();
+    }
+
     public double damageLegInjury(double amount) {
         double before = legInjury;
         legInjury = SpecificInjuryMath.addSeverity(before, amount);
@@ -204,6 +228,58 @@ public final class HumanBodyStatus {
         rightHandInjury = SpecificInjuryMath.recoverSeverity(rightHandInjury, recovery);
         return Math.abs(beforeLeg - legInjury) > 0.0001D
                 || Math.abs(beforeHand - rightHandInjury) > 0.0001D;
+    }
+
+    public boolean recoverNaturalInjuries(double amount) {
+        double recovery = Math.max(0.0D, amount);
+        double beforeLeg = legInjury;
+        double beforeHand = rightHandInjury;
+        legInjury = SpecificInjuryMath.recoverNaturalSeverity(legInjury, recovery);
+        rightHandInjury = SpecificInjuryMath.recoverNaturalSeverity(rightHandInjury, recovery);
+        return Math.abs(beforeLeg - legInjury) > 0.0001D
+                || Math.abs(beforeHand - rightHandInjury) > 0.0001D;
+    }
+
+    public boolean recoverNaturalBodyAndInjuries(ServerPlayer player, double partHealAmount, double injuryRecoveryAmount) {
+        syncCapacityFromVanillaMax(player);
+        boolean changed = recoverNaturalInjuries(injuryRecoveryAmount);
+        double heal = Math.max(0.0D, partHealAmount);
+        if (heal > 0.0001D) {
+            for (BodyPart part : BodyPart.values()) {
+                double capRatio = (part == BodyPart.LIMBS && hasFracture()) ? 0.65D : 1.0D;
+                double cap = maxHealth(part) * capRatio;
+                double before = health(part);
+                if (before < cap - 0.001D) {
+                    setHealth(part, Math.min(cap, before + heal));
+                    changed |= health(part) > before + 0.001D;
+                }
+            }
+        }
+        if (changed) {
+            syncVanillaFromHead(player);
+        }
+        return changed;
+    }
+
+    public boolean treatFracture(ServerPlayer player, double severityReduction, double partHealAmount) {
+        syncCapacityFromVanillaMax(player);
+        boolean hadFracture = hasFracture();
+        boolean changed = recoverSpecificInjuries(severityReduction);
+        if (partHealAmount > 0.01D) {
+            BodyPart worst = worstPart(true);
+            double before = health(worst);
+            setHealth(worst, before + partHealAmount);
+            changed |= health(worst) > before + 0.01D;
+            double beforeLimbs = health(BodyPart.LIMBS);
+            setHealth(BodyPart.LIMBS, beforeLimbs + partHealAmount * 0.6D);
+            changed |= health(BodyPart.LIMBS) > beforeLimbs + 0.01D;
+        }
+        applyFunctionalEffects(player);
+        syncVanillaFromHead(player);
+        if (hadFracture && !hasFracture()) {
+            player.sendSystemMessage(Component.translatable("message.earth_human.injury.fracture_set"));
+        }
+        return changed;
     }
 
     public void setHealth(BodyPart part, double value) {
@@ -311,6 +387,7 @@ public final class HumanBodyStatus {
             remaining = healWithOverflow(part, remaining);
             changed |= remaining < before - 0.01D;
         }
+        changed |= recoverNaturalInjuries(Math.max(0.0D, vanillaHealAmount) * 0.14D * EarthHumanConfig.healingMultiplier());
         if (changed) {
             syncVanillaFromHead(player);
         }
@@ -395,10 +472,11 @@ public final class HumanBodyStatus {
     }
 
     public void applyFunctionalEffects(ServerPlayer player) {
+        updateMaxHealthModifiers(player);
         if (!EarthHumanConfig.bodyEffectsEnabled()) {
             return;
         }
-        if (legInjury >= 0.75D) {
+        if (isLegFractured()) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 1, true, false, true));
         } else if (legInjury >= 0.30D) {
             player.addEffect(new MobEffectInstance(MobEffects.SLOWNESS, 120, 0, true, false, true));
@@ -407,6 +485,82 @@ public final class HumanBodyStatus {
             player.addEffect(new MobEffectInstance(MobEffects.WEAKNESS, 120, health(BodyPart.TORSO) <= 0.01D ? 1 : 0, true, false, true));
             player.causeFoodExhaustion(0.05F);
         }
+    }
+
+    public double fractureMaxHealthPenalty() {
+        double penalty = 0.0D;
+        if (isLegFractured()) {
+            penalty -= 4.0D;
+        }
+        if (isRightHandFractured()) {
+            penalty -= 4.0D;
+        }
+        return penalty;
+    }
+
+    public static double somaticsMaxHealthBonus(ServerPlayer player) {
+        if (player == null || !EarthHumanConfig.trainingEnabled()) {
+            return 0.0D;
+        }
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        double mult = SomaticsLoreBridge.somaticMultiplier(player, training);
+        // 1.0x -> +0 HP (20 total); 5.0x -> +80 HP (100 total, 50 hearts = 5x peak human)
+        return Math.min(80.0D, Math.round((mult - 1.0D) * 10.0D) * 2.0D);
+    }
+
+    private void updateMaxHealthModifiers(ServerPlayer player) {
+        var maxHealthAttr = player.getAttribute(Attributes.MAX_HEALTH);
+        if (maxHealthAttr == null) {
+            return;
+        }
+        double penalty = EarthHumanConfig.bodyEffectsEnabled() ? fractureMaxHealthPenalty() : 0.0D;
+        double bonus = somaticsMaxHealthBonus(player);
+        setTransientModifier(maxHealthAttr, FRACTURE_HEALTH_PENALTY_ID, penalty);
+        setTransientModifier(maxHealthAttr, SOMATICS_HEALTH_BONUS_ID, bonus);
+        if (player.getHealth() > player.getMaxHealth()) {
+            player.setHealth(player.getMaxHealth());
+        }
+        if (EarthHumanConfig.trainingEnabled()) {
+            HumanTrainingStatus training = HumanTrainingStatus.get(player);
+            double mult = SomaticsLoreBridge.somaticMultiplier(player, training);
+            double progress = Math.max(0.0D, (mult - 1.0D) / 4.0D); // 0.0 .. 1.0
+            var attackAttr = player.getAttribute(Attributes.ATTACK_DAMAGE);
+            if (attackAttr != null) {
+                setTransientModifier(attackAttr, SOMATICS_ATTACK_BONUS_ID, progress * 7.0D);
+            }
+            var speedAttr = player.getAttribute(Attributes.MOVEMENT_SPEED);
+            if (speedAttr != null) {
+                setTransientModifier(speedAttr, SOMATICS_SPEED_BONUS_ID, progress * 0.055D);
+            }
+            var fallAttr = player.getAttribute(Attributes.SAFE_FALL_DISTANCE);
+            if (fallAttr != null) {
+                setTransientModifier(fallAttr, SOMATICS_SAFE_FALL_BONUS_ID, progress * 12.0D);
+            }
+            var kbAttr = player.getAttribute(Attributes.KNOCKBACK_RESISTANCE);
+            if (kbAttr != null) {
+                setTransientModifier(kbAttr, SOMATICS_KNOCKBACK_BONUS_ID, progress * 0.80D);
+            }
+        }
+    }
+
+    private static void setTransientModifier(net.minecraft.world.entity.ai.attributes.AttributeInstance instance,
+                                             net.minecraft.resources.Identifier id,
+                                             double amount) {
+        var existing = instance.getModifier(id);
+        if (Math.abs(amount) < 0.01D) {
+            if (existing != null) {
+                instance.removeModifier(id);
+            }
+            return;
+        }
+        if (existing != null && Math.abs(existing.amount() - amount) < 0.01D) {
+            return;
+        }
+        if (existing != null) {
+            instance.removeModifier(id);
+        }
+        instance.addTransientModifier(new net.minecraft.world.entity.ai.attributes.AttributeModifier(
+                id, amount, net.minecraft.world.entity.ai.attributes.AttributeModifier.Operation.ADD_VALUE));
     }
 
     public void warnDirectDamage(ServerPlayer player, BodyPart part, double before) {
@@ -428,7 +582,7 @@ public final class HumanBodyStatus {
             return;
         }
         String key = null;
-        if (after >= 0.75D && before < 0.75D) {
+        if (after >= SpecificInjuryMath.FRACTURE_THRESHOLD && before < SpecificInjuryMath.FRACTURE_THRESHOLD) {
             key = "message.earth_human.injury." + id + ".serious";
         } else if (after >= 0.30D && before < 0.30D) {
             key = "message.earth_human.injury." + id + ".started";
@@ -458,7 +612,7 @@ public final class HumanBodyStatus {
     }
 
     private Component injuryStateText(double severity) {
-        if (severity >= 0.75D) {
+        if (SpecificInjuryMath.isFractured(severity)) {
             return Component.translatable("message.earth_human.body.state.critical");
         }
         if (severity >= 0.30D) {
@@ -549,7 +703,15 @@ public final class HumanBodyStatus {
     }
 
     private void syncCapacityFromVanillaMax(Player player) {
-        double currentMax = Math.max(1.0D, player.getMaxHealth());
+        double rawMax = player.getMaxHealth();
+        var attr = player.getAttribute(Attributes.MAX_HEALTH);
+        if (attr != null) {
+            var fractureMod = attr.getModifier(FRACTURE_HEALTH_PENALTY_ID);
+            if (fractureMod != null) {
+                rawMax -= fractureMod.amount();
+            }
+        }
+        double currentMax = Math.max(1.0D, rawMax);
         if (Math.abs(currentMax - vanillaMaxHealth) <= 0.01D) {
             return;
         }

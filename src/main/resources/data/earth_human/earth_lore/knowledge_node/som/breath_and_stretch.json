@@ -1,0 +1,36 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 1,
+  "gate": "soft",
+  "requires": [
+    {
+      "all": "earth_human:som/calisthenics_basics"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "item": "earth_human:training_mat"
+    }
+  ],
+  "literature": [
+    "notes"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.breath_and_stretch",
+  "desc_key": "lore.earth_human.som.breath_and_stretch.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:white_wool",
+        "count": 2
+      },
+      {
+        "ingredient": "minecraft:paper",
+        "count": 2
+      }
+    ],
+    "ticks": 400
+  }
+}

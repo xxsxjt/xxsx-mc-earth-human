@@ -607,6 +607,7 @@ public class EarthHumanStatusScreen extends Screen {
         return switch (action) {
             case HYDRATE -> new ItemStack(EarthHumanItems.FILLED_CANTEEN.get());
             case BANDAGE -> new ItemStack(EarthHumanItems.STERILE_BANDAGE.get());
+            case SPLINT -> new ItemStack(EarthHumanItems.ORTHOPEDIC_SPLINT.get());
             case FIRST_AID -> new ItemStack(EarthHumanItems.BASIC_FIRST_AID_KIT.get());
             case WARM -> new ItemStack(EarthHumanItems.HEAT_PACK.get());
             case COOL -> new ItemStack(EarthHumanItems.COOLING_PACK.get());

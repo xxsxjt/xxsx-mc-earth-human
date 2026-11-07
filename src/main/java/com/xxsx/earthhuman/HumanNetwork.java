@@ -9,21 +9,24 @@ public final class HumanNetwork {
     }
 
     public static void registerPayloads(RegisterPayloadHandlersEvent event) {
-        event.registrar("0.1.19")
+        event.registrar("0.1.20")
                 .playToClient(HumanStatusSyncPayload.TYPE, HumanStatusSyncPayload.CODEC)
                 .playToClient(HumanBodySyncPayload.TYPE, HumanBodySyncPayload.CODEC)
+                .playToClient(HumanTrainingSyncPayload.TYPE, HumanTrainingSyncPayload.CODEC)
                 .playToClient(HumanOpenSettingsPayload.TYPE, HumanOpenSettingsPayload.CODEC)
                 .playToClient(HumanOpenStatusPayload.TYPE, HumanOpenStatusPayload.CODEC)
                 .playToClient(HumanOpenGuidePayload.TYPE, HumanOpenGuidePayload.CODEC)
                 .playToClient(HumanCareStatePayload.TYPE, HumanCareStatePayload.CODEC)
                 .playToClient(HumanExerciseSessionPayload.TYPE, HumanExerciseSessionPayload.CODEC)
                 .playToServer(HumanCareActionPayload.TYPE, HumanCareActionPayload.CODEC, HumanCareActions::handlePayload)
-                .playToServer(HumanCareCancelPayload.TYPE, HumanCareCancelPayload.CODEC, HumanCareActions::handleCancelPayload);
+                .playToServer(HumanCareCancelPayload.TYPE, HumanCareCancelPayload.CODEC, HumanCareActions::handleCancelPayload)
+                .playToServer(HumanExerciseActionPayload.TYPE, HumanExerciseActionPayload.CODEC, HumanExercise::handlePayload);
     }
 
     public static void sync(ServerPlayer player, HumanStatus status) {
         PacketDistributor.sendToPlayer(player, HumanStatusSyncPayload.fromStatus(status));
         PacketDistributor.sendToPlayer(player, HumanBodySyncPayload.fromBody(HumanBodyStatus.get(player)));
+        PacketDistributor.sendToPlayer(player, HumanTrainingSyncPayload.fromPlayer(player));
     }
 
     public static void sync(ServerPlayer player) {

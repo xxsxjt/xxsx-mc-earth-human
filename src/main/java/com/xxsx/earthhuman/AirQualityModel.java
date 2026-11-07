@@ -10,7 +10,8 @@ public final class AirQualityModel {
                               double lossMultiplier, double recoveryMultiplier) {
         double filter = HumanStatus.clamp(filterStrength, 0.0D, 0.95D);
         double protectedSources = (smoke ? 0.85D : 0.0D) + (dust ? 0.55D : 0.0D);
-        double environmentalSources = (underwater ? 0.32D : 0.0D) + (nether ? 0.04D : 0.0D);
+        // Underwater breathing is governed independently by vanilla air bubbles; this meter only tracks lung dust/smoke/ash.
+        double environmentalSources = (nether ? 0.04D : 0.0D);
         double exposure = protectedSources * (1.0D - filter) + environmentalSources;
         if (exposure > 0.0D) {
             return HumanStatus.clamp(current - exposure * Math.max(0.0D, lossMultiplier), 0.0D, 100.0D);

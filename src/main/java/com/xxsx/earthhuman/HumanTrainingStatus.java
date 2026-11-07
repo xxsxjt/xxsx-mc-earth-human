@@ -26,7 +26,7 @@ public final class HumanTrainingStatus {
         CompoundTag data = player.getPersistentData();
         HumanTrainingStatus status = new HumanTrainingStatus();
         for (BodyPart part : BodyPart.values()) {
-            status.xp[part.ordinal()] = HumanStatus.clamp(data.getDoubleOr(xpKey(part), 0.0D), 0.0D, 10_000.0D);
+            status.xp[part.ordinal()] = HumanStatus.clamp(data.getDoubleOr(xpKey(part), 0.0D), 0.0D, 50_000.0D);
             status.sessionLoad[part.ordinal()] = HumanStatus.clamp(data.getDoubleOr(loadKey(part), 0.0D), 0.0D, 100.0D);
         }
         status.lastWarningGameTime = data.getLongOr(LAST_WARN_TIME, -1_000_000L);
@@ -37,7 +37,7 @@ public final class HumanTrainingStatus {
     public void save(Player player) {
         CompoundTag data = player.getPersistentData();
         for (BodyPart part : BodyPart.values()) {
-            data.putDouble(xpKey(part), HumanStatus.clamp(xp(part), 0.0D, 10_000.0D));
+            data.putDouble(xpKey(part), HumanStatus.clamp(xp(part), 0.0D, 50_000.0D));
             data.putDouble(loadKey(part), HumanStatus.clamp(load(part), 0.0D, 100.0D));
         }
         data.putLong(LAST_WARN_TIME, lastWarningGameTime);
@@ -66,12 +66,12 @@ public final class HumanTrainingStatus {
     }
 
     public int level(BodyPart part) {
-        return Math.min(20, (int) Math.floor(Math.sqrt(xp(part) / 18.0D)));
+        return Math.min(50, (int) Math.floor(Math.sqrt(xp(part) / 12.0D)));
     }
 
     public double train(ServerPlayer player, BodyPart part, double xpGain, double loadGain, double fatigueGain) {
         int index = part.ordinal();
-        xp[index] = HumanStatus.clamp(xp[index] + Math.max(0.0D, xpGain), 0.0D, 10_000.0D);
+        xp[index] = HumanStatus.clamp(xp[index] + Math.max(0.0D, xpGain), 0.0D, 50_000.0D);
         sessionLoad[index] = HumanStatus.clamp(sessionLoad[index] + Math.max(0.0D, loadGain), 0.0D, 100.0D);
         if (fatigueGain > 0.0D) {
             HumanStatus status = HumanStatus.get(player);
@@ -89,10 +89,10 @@ public final class HumanTrainingStatus {
     }
 
     public void recoverTick(Player player, boolean sleeping, boolean resting) {
-        if (!sleeping && !resting) {
-            return;
+        double amount = sleeping ? 0.90D : (resting ? 0.045D : 0.012D);
+        if (player instanceof ServerPlayer serverPlayer && SomaticsLoreBridge.hasBreathAndStretch(serverPlayer, this)) {
+            amount *= 1.35D;
         }
-        double amount = sleeping ? 0.85D : 0.020D;
         for (BodyPart part : BodyPart.values()) {
             int index = part.ordinal();
             sessionLoad[index] = Math.max(0.0D, sessionLoad[index] - amount);

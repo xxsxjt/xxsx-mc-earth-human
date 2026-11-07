@@ -1,8 +1,10 @@
 package com.xxsx.earthhuman;
 
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.effect.MobEffectInstance;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
 
 import java.util.Locale;
 
@@ -12,6 +14,28 @@ public final class HumanExercise {
     private static final double SEVERE_STRAIN_LOAD_THRESHOLD = 90.0D;
 
     private HumanExercise() {
+    }
+
+    public static void handlePayload(HumanExerciseActionPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> {
+            if (context.player() instanceof ServerPlayer player) {
+                ExerciseAction action = ExerciseAction.byId(payload.actionId());
+                if (action != null) {
+                    boolean nearEquipment = hasNearbyEquipment(player);
+                    apply(player, action, nearEquipment);
+                }
+            }
+        });
+    }
+
+    public static boolean hasNearbyEquipment(ServerPlayer player) {
+        BlockPos center = player.blockPosition();
+        for (BlockPos pos : BlockPos.betweenClosed(center.offset(-3, -1, -3), center.offset(3, 2, 3))) {
+            if (ExerciseStationBlock.actionOf(player.level().getBlockState(pos)) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static boolean apply(ServerPlayer player, ExerciseAction action, boolean fromEquipment) {
@@ -29,20 +53,21 @@ public final class HumanExercise {
             return false;
         }
         training.markManualExercise(player);
-        if (!fromEquipment) {
-            // Command-driven exercise has no item behind it, so give the player a visible action.
-            player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
-        }
+        player.swing(net.minecraft.world.InteractionHand.MAIN_HAND, true);
+
+        double somaticsXpMult = (SomaticsLoreBridge.hasResistanceConditioning(player, training) ? 1.40D : 1.0D)
+                * (fromEquipment ? 1.35D : 1.0D);
+        double stretchMult = SomaticsLoreBridge.hasBreathAndStretch(player, training) ? 1.50D : 1.0D;
 
         double worstLoad = 0.0D;
         for (BodyPart part : action.parts) {
-            double gainMultiplier = EarthHumanConfig.trainingGainMultiplier();
+            double gainMultiplier = EarthHumanConfig.trainingGainMultiplier() * somaticsXpMult;
             double load = training.train(player, part,
                     action.xpGain * gainMultiplier,
-                    Math.max(0.0D, action.loadGain) * gainMultiplier,
+                    Math.max(0.0D, action.loadGain) * EarthHumanConfig.trainingGainMultiplier(),
                     0.0D);
             if (action.loadGain < 0.0D) {
-                load = training.adjustLoad(part, action.loadGain * EarthHumanConfig.recoveryMultiplier());
+                load = training.adjustLoad(part, action.loadGain * stretchMult * EarthHumanConfig.recoveryMultiplier());
             }
             worstLoad = Math.max(worstLoad, load);
         }
@@ -51,7 +76,7 @@ public final class HumanExercise {
         if (EarthHumanConfig.fatigueEnabled()) {
             double fatigueDelta = action.fatigueGain >= 0.0D
                     ? action.fatigueGain * EarthHumanConfig.fatigueGainMultiplier()
-                    : action.fatigueGain * EarthHumanConfig.recoveryMultiplier();
+                    : action.fatigueGain * stretchMult * EarthHumanConfig.recoveryMultiplier();
             status.fatigue = HumanStatus.clamp(status.fatigue + fatigueDelta, 0.0D, 100.0D);
         }
         status.save(player);
@@ -60,6 +85,10 @@ public final class HumanExercise {
             applyStrainIfNeeded(player, training, action, worstLoad);
         }
         training.save(player);
+        SomaticsLoreBridge.syncTrainingToLore(player, training);
+        HumanBodyStatus body = HumanBodyStatus.get(player);
+        body.applyFunctionalEffects(player);
+        body.save(player);
         HumanNetwork.sync(player, status);
         player.sendSystemMessage(Component.translatable(
                 fromEquipment ? "message.earth_human.training.used_equipment" : "message.earth_human.training.did_action",

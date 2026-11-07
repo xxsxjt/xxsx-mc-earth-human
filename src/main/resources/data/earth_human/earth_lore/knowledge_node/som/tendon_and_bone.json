@@ -1,0 +1,36 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 2,
+  "gate": "soft",
+  "requires": [
+    {
+      "all": "earth_human:som/breath_and_stretch"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "item": "earth_human:orthopedic_splint"
+    }
+  ],
+  "literature": [
+    "notes"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.tendon_and_bone",
+  "desc_key": "lore.earth_human.som.tendon_and_bone.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:bone",
+        "count": 4
+      },
+      {
+        "ingredient": "minecraft:stick",
+        "count": 4
+      }
+    ],
+    "ticks": 600
+  }
+}

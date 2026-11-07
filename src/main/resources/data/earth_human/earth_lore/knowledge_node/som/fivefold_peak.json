@@ -1,0 +1,37 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 5,
+  "gate": "cap",
+  "requires": [
+    {
+      "all": "earth_human:som/martial_somatics"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "mastery": "earth_lore:som"
+    }
+  ],
+  "literature": [
+    "notes",
+    "treatise"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.fivefold_peak",
+  "desc_key": "lore.earth_human.som.fivefold_peak.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:golden_apple",
+        "count": 2
+      },
+      {
+        "ingredient": "minecraft:diamond",
+        "count": 2
+      }
+    ],
+    "ticks": 1800
+  }
+}

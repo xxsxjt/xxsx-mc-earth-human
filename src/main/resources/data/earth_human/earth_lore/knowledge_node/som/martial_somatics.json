@@ -1,0 +1,36 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 4,
+  "gate": "soft",
+  "requires": [
+    {
+      "all": "earth_human:som/visceral_vitality"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "ability": "earth_human:bare_hand_rock_breaker"
+    }
+  ],
+  "literature": [
+    "notes"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.martial_somatics",
+  "desc_key": "lore.earth_human.som.martial_somatics.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:iron_ingot",
+        "count": 4
+      },
+      {
+        "ingredient": "minecraft:golden_apple",
+        "count": 1
+      }
+    ],
+    "ticks": 1200
+  }
+}

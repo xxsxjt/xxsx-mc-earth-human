@@ -1,6 +1,7 @@
 package com.xxsx.earthhuman;
 
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.damagesource.DamageTypes;
@@ -9,6 +10,8 @@ import net.minecraft.world.damagesource.DamageTypes;
 public final class HumanInjuryService {
     private static final String LAST_BARE_HAND_MINING_TICK =
             EarthHuman.MODID + ".movement.last_bare_hand_mining_tick";
+    private static final String LAST_BARE_HAND_HINT_TICK =
+            EarthHuman.MODID + ".movement.last_bare_hand_hint_tick";
 
     private HumanInjuryService() {
     }
@@ -20,12 +23,23 @@ public final class HumanInjuryService {
             return false;
         }
         CoreInjuryPolicy.Cause cause = classifyCoreCause(player, source);
+        double multiplier = EarthHumanConfig.bodyDamageMultiplier();
+        if (cause == CoreInjuryPolicy.Cause.FALL) {
+            HumanTrainingStatus training = HumanTrainingStatus.get(player);
+            double fallProtection = (SomaticsLoreBridge.hasTendonAndBone(player, training) ? 0.65D : 1.0D)
+                    * Math.max(0.40D, 1.0D - training.level(BodyPart.LIMBS) * 0.03D);
+            multiplier *= fallProtection;
+        }
         return applyOutcome(player, body, CoreInjuryPolicy.evaluate(
-                cause, finalDamage, EarthHumanConfig.bodyDamageMultiplier()));
+                cause, finalDamage, multiplier));
     }
 
     public static boolean applyBareHandHardMining(ServerPlayer player, HumanBodyStatus body) {
         if (player == null || body == null || !player.getMainHandItem().isEmpty()) {
+            return false;
+        }
+        HumanTrainingStatus training = HumanTrainingStatus.get(player);
+        if (SomaticsLoreBridge.hasMartialSomatics(player, training)) {
             return false;
         }
         long now = player.level().getGameTime();
@@ -34,10 +48,17 @@ public final class HumanInjuryService {
             return false;
         }
         data.putLong(LAST_BARE_HAND_MINING_TICK, now);
-        return applyOutcome(player, body, CoreInjuryPolicy.evaluate(
+        double somaticsFactor = (SomaticsLoreBridge.hasTendonAndBone(player, training) ? 0.20D : 0.45D)
+                * Math.max(0.15D, 1.0D - training.level(BodyPart.LIMBS) * 0.05D);
+        boolean changed = applyOutcome(player, body, CoreInjuryPolicy.evaluate(
                 CoreInjuryPolicy.Cause.BARE_HAND_HARD_MINING,
                 0.0D,
-                EarthHumanConfig.bodyDamageMultiplier()));
+                EarthHumanConfig.bodyDamageMultiplier() * somaticsFactor));
+        if (changed && now - data.getLongOr(LAST_BARE_HAND_HINT_TICK, -1000L) >= 40L) {
+            data.putLong(LAST_BARE_HAND_HINT_TICK, now);
+            player.sendOverlayMessage(Component.translatable("message.earth_human.injury.right_hand.bare_hand_hint"));
+        }
+        return changed;
     }
 
     public static float rightHandMiningSpeedMultiplier(HumanBodyStatus body) {

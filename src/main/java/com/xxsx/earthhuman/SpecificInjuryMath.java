@@ -2,11 +2,16 @@ package com.xxsx.earthhuman;
 
 /** Pure tuning rules for deterministic, non-combat injuries in the core mod. */
 public final class SpecificInjuryMath {
+    public static final double FRACTURE_THRESHOLD = 0.70D;
     private static final double FALL_SEVERITY_PER_DAMAGE = 0.08D;
     private static final double CACTUS_SEVERITY_PER_DAMAGE = 0.10D;
     private static final double BARE_HAND_MINING_SEVERITY_PER_TICK = 0.002D;
 
     private SpecificInjuryMath() {
+    }
+
+    public static boolean isFractured(double severity) {
+        return clamp(severity) >= FRACTURE_THRESHOLD;
     }
 
     public static double addSeverity(double current, double amount) {
@@ -15,6 +20,19 @@ public final class SpecificInjuryMath {
 
     public static double recoverSeverity(double current, double amount) {
         return clamp(current - Math.max(0.0D, amount));
+    }
+
+    /**
+     * Minor injuries (< FRACTURE_THRESHOLD) heal naturally and through food/rest.
+     * Fractures (>= FRACTURE_THRESHOLD) require a splint, first-aid kit, or bandage immobilization
+     * to drop below the fracture threshold before natural healing can finish the recovery.
+     */
+    public static double recoverNaturalSeverity(double current, double amount) {
+        double clamped = clamp(current);
+        if (clamped >= FRACTURE_THRESHOLD) {
+            return clamped;
+        }
+        return clamp(clamped - Math.max(0.0D, amount));
     }
 
     public static double fallSeverityDelta(double finalDamage, double multiplier) {

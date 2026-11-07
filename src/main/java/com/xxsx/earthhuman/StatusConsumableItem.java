@@ -50,12 +50,25 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
 
     @Override
     public InteractionResult use(Level level, Player player, InteractionHand hand) {
+        ItemStack stack = player.getItemInHand(hand);
+        if (player instanceof ServerPlayer serverPlayer && !wouldHaveEffect(serverPlayer, stack)) {
+            serverPlayer.sendOverlayMessage(Component.translatable("message.earth_human.care.no_effect"));
+            return InteractionResult.FAIL;
+        }
+        if (level.isClientSide() && isMedicalItem(stack.getItem()) && !clientNeedsMedicalItem(player, stack.getItem())) {
+            player.sendOverlayMessage(Component.translatable("message.earth_human.care.no_effect"));
+            return InteractionResult.FAIL;
+        }
         return ItemUtils.startUsingInstantly(level, player, hand);
     }
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, Level level, LivingEntity entity) {
         if (entity instanceof ServerPlayer player) {
+            if (!wouldHaveEffect(player, stack)) {
+                player.sendOverlayMessage(Component.translatable("message.earth_human.care.no_effect"));
+                return stack;
+            }
             applyStatusEffects(player, stack);
         }
 
@@ -97,6 +110,10 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
     }
 
     public boolean wouldHaveEffect(ServerPlayer player, ItemStack stack) {
+        if (isMedicalItem(stack.getItem())) {
+            return canApplyBodyTreatment(player, stack.getItem())
+                    || player.getHealth() < player.getMaxHealth() - 0.05F;
+        }
         HumanStatus status = HumanStatus.get(player);
         if ((hydrationDelta > 0.0D && status.hydration < 100.0D)
                 || (hydrationDelta < 0.0D && status.hydration > 0.0D)
@@ -119,6 +136,31 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
             }
         }
         return false;
+    }
+
+    private static boolean isMedicalItem(Item item) {
+        return item == EarthHumanItems.SIMPLE_BANDAGE.get()
+                || item == EarthHumanItems.STERILE_BANDAGE.get()
+                || item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()
+                || item == EarthHumanItems.BASIC_FIRST_AID_KIT.get();
+    }
+
+    private static boolean clientNeedsMedicalItem(Player player, Item item) {
+        if (player.getHealth() < player.getMaxHealth() - 0.05F) {
+            return true;
+        }
+        HumanBodySyncPayload body = com.xxsx.earthhuman.client.EarthHumanClient.currentBodyPayload();
+        if (item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()) {
+            return body.legInjury() > 0.15D || body.rightHandInjury() > 0.15D || body.limbs() < 0.99D;
+        }
+        boolean includeHead = item == EarthHumanItems.BASIC_FIRST_AID_KIT.get();
+        if (includeHead && body.head() < 0.99D) {
+            return true;
+        }
+        return body.torso() < 0.99D
+                || body.limbs() < 0.99D
+                || body.legInjury() > 0.01D
+                || body.rightHandInjury() > 0.01D;
     }
 
     public ItemStack createRemainderStack() {
@@ -162,24 +204,42 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
     private static Component applyBodyTreatment(ServerPlayer player, Item item) {
         double heal;
         boolean includeHead;
+        double fractureRelief;
         if (item == EarthHumanItems.SIMPLE_BANDAGE.get()) {
             heal = 1.5D;
             includeHead = false;
+            fractureRelief = 0.25D;
         } else if (item == EarthHumanItems.STERILE_BANDAGE.get()) {
             heal = 2.5D;
             includeHead = false;
+            fractureRelief = 0.38D;
+        } else if (item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()) {
+            heal = 3.0D;
+            includeHead = false;
+            fractureRelief = 0.68D;
         } else if (item == EarthHumanItems.BASIC_FIRST_AID_KIT.get()) {
             heal = 5.0D;
             includeHead = true;
+            fractureRelief = 0.78D;
         } else {
             return null;
         }
 
         HumanBodyStatus body = HumanBodyStatus.get(player);
+        if (body.hasFracture() || item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()) {
+            if (body.treatFracture(player, fractureRelief, heal * EarthHumanConfig.healingMultiplier())) {
+                body.save(player);
+                HumanNetwork.syncBody(player, body);
+                return Component.translatable(
+                        "message.earth_human.body.injury.treated",
+                        String.format(java.util.Locale.ROOT, "%.0f", (1.0D - Math.max(body.legInjury(), body.rightHandInjury())) * 100.0D));
+            }
+        }
         BodyPart part = body.worstPart(includeHead);
         if (body.hasSpecificInjury() && body.health(part) >= body.maxHealth(part) - 0.01D) {
-            boolean recovered = body.recoverSpecificInjuries(heal / 4.0D);
+            boolean recovered = body.recoverSpecificInjuries(Math.max(fractureRelief, heal / 4.0D));
             if (recovered) {
+                body.applyFunctionalEffects(player);
                 body.save(player);
                 HumanNetwork.syncBody(player, body);
                 return Component.translatable(
@@ -193,6 +253,7 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
         if (!body.healPart(player, part, heal * EarthHumanConfig.healingMultiplier())) {
             return null;
         }
+        body.applyFunctionalEffects(player);
         body.save(player);
         HumanNetwork.syncBody(player, body);
         return Component.translatable(
@@ -203,7 +264,9 @@ public class StatusConsumableItem extends Item implements EarthHumanTooltipProvi
 
     private static boolean canApplyBodyTreatment(ServerPlayer player, Item item) {
         boolean includeHead;
-        if (item == EarthHumanItems.SIMPLE_BANDAGE.get() || item == EarthHumanItems.STERILE_BANDAGE.get()) {
+        if (item == EarthHumanItems.SIMPLE_BANDAGE.get()
+                || item == EarthHumanItems.STERILE_BANDAGE.get()
+                || item == EarthHumanItems.ORTHOPEDIC_SPLINT.get()) {
             includeHead = false;
         } else if (item == EarthHumanItems.BASIC_FIRST_AID_KIT.get()) {
             includeHead = true;

@@ -1,0 +1,39 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 2,
+  "gate": "soft",
+  "requires": [
+    {
+      "all": "earth_human:som/breath_and_stretch"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "item": "earth_human:simple_dumbbell"
+    },
+    {
+      "item": "earth_human:resistance_band"
+    }
+  ],
+  "literature": [
+    "notes"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.resistance_conditioning",
+  "desc_key": "lore.earth_human.som.resistance_conditioning.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:iron_ingot",
+        "count": 2
+      },
+      {
+        "ingredient": "minecraft:string",
+        "count": 4
+      }
+    ],
+    "ticks": 600
+  }
+}

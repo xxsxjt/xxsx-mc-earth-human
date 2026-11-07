@@ -97,7 +97,7 @@ public final class HumanEvents {
         }
 
         HumanBodyStatus body = HumanBodyStatus.get(player);
-        if (BodyHealthBridgeApi.active()) {
+        if (EarthHumanConfig.bodyHealthEnabled()) {
             bridgePassiveVanillaHealthChange(player, body);
         }
         if (EarthHumanConfig.bodyHealthEnabled() && handleJumpTakeoff(player, body)) {
@@ -127,9 +127,23 @@ public final class HumanEvents {
         ArcanaHumanBridge arcana = ArcanaHumanBridge.read(player);
         arcana.applyPassiveBodySupport(player);
         HumanExercise.recover(player, player.isSleeping(), resting && !recentExertion);
-        double injuryRecovery = player.isSleeping() ? 0.015D : (resting ? 0.002D : 0.0D);
-        if (injuryRecovery > 0.0D) {
-            body.recoverSpecificInjuries(injuryRecovery * EarthHumanConfig.recoveryMultiplier());
+        boolean wellFedAndFullHp = player.getFoodData().getFoodLevel() >= 16
+                && player.getHealth() >= player.getMaxHealth() - 0.1F;
+        double somaticsRecoveryMult = SomaticsLoreBridge.hasTendonAndBone(player) ? 1.8D : 1.0D;
+        double baseInjuryRecovery = player.isSleeping() ? 0.045D : (resting ? 0.018D : 0.008D);
+        if (wellFedAndFullHp) {
+            baseInjuryRecovery += 0.025D;
+        }
+        double basePartRecovery = player.isSleeping() ? 0.60D : (resting ? 0.22D : 0.08D);
+        if (wellFedAndFullHp) {
+            basePartRecovery += 0.38D;
+        }
+        boolean naturallyRecovered = body.recoverNaturalBodyAndInjuries(
+                player,
+                basePartRecovery * somaticsRecoveryMult * EarthHumanConfig.recoveryMultiplier(),
+                baseInjuryRecovery * somaticsRecoveryMult * EarthHumanConfig.recoveryMultiplier());
+        if (naturallyRecovered && wellFedAndFullHp && !player.isSleeping()) {
+            player.causeFoodExhaustion(0.03F);
         }
 
         if (EarthHumanConfig.hydrationEnabled()) {
@@ -299,9 +313,6 @@ public final class HumanEvents {
         if (!(event.getEntity() instanceof ServerPlayer player) || player.isCreative() || player.isSpectator()) {
             return;
         }
-        if (!BodyHealthBridgeApi.active()) {
-            return;
-        }
         float amount = event.getAmount();
         if (!Float.isFinite(amount) || amount <= 0.0F) {
             return;
@@ -311,10 +322,11 @@ public final class HumanEvents {
         if (EarthHumanConfig.bodyHealthEnabled()) {
             HumanBodyStatus body = HumanBodyStatus.get(player);
             if (body.bridgeVanillaHealing(player, amount)) {
+                body.applyFunctionalEffects(player);
                 body.save(player);
                 HumanNetwork.syncBody(player, body);
             }
-            if (BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
+            if (BodyHealthBridgeApi.active() && BodyHealthBridgeApi.mode() == BodyHealthBridgeApi.Mode.HEAD_BAR) {
                 event.setAmount(0.0F);
                 expectedHealth = player.getHealth();
             }
@@ -330,7 +342,8 @@ public final class HumanEvents {
         if (EarthHumanConfig.bodyHealthEnabled()) {
             body.spreadFromUse(player, BodyPart.LIMBS, 0.18D);
             if (player.getMainHandItem().isEmpty()
-                    && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)) {
+                    && event.getState().is(BlockTags.MINEABLE_WITH_PICKAXE)
+                    && event.getState().getDestroySpeed(player.level(), event.getPosition().orElse(player.blockPosition())) >= 1.2F) {
                 HumanInjuryService.applyBareHandHardMining(player, body);
             }
         }
@@ -339,14 +352,22 @@ public final class HumanEvents {
                     player.level().getGameTime() + 40L);
         }
         HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.030D, 0.038D);
+        double somaticsSpeedMult = 1.0D;
+        if (EarthHumanConfig.trainingEnabled()) {
+            HumanTrainingStatus training = HumanTrainingStatus.get(player);
+            somaticsSpeedMult = SomaticsLoreBridge.somaticMultiplier(player, training);
+        }
         if (EarthHumanConfig.bodyEffectsEnabled()) {
             float multiplier = HumanInjuryService.rightHandMiningSpeedMultiplier(body);
             if (player.hasEffect(EarthHumanEffects.MUSCLE_STRAIN)) {
                 multiplier *= 0.86F;
             }
-            if (multiplier < 0.99F) {
-                event.setNewSpeed(event.getNewSpeed() * multiplier);
+            float combined = (float) (multiplier * somaticsSpeedMult);
+            if (Math.abs(combined - 1.0F) > 0.01F) {
+                event.setNewSpeed(event.getNewSpeed() * combined);
             }
+        } else if (somaticsSpeedMult > 1.01D) {
+            event.setNewSpeed((float) (event.getNewSpeed() * somaticsSpeedMult));
         }
         body.save(player);
     }
@@ -923,10 +944,7 @@ public final class HumanEvents {
         data.putLong(LAST_JUMP_TIME, player.level().getGameTime());
         addExertion(player, player.isSprinting() ? 1.35D : 0.85D);
         HumanExercise.applyPassiveUse(player, BodyPart.LIMBS, 0.024D, 0.040D);
-        double base = player.isSprinting() ? 0.030D : 0.018D;
-        boolean changed = damageLegFromJump(player, body, BodyPart.LIMBS, base * 2.0D);
-        changed |= body.spreadFromUse(player, BodyPart.LIMBS, 0.16D);
-        return changed;
+        return false;
     }
 
     private static boolean damageLegFromJump(ServerPlayer player, HumanBodyStatus body, BodyPart leg, double base) {

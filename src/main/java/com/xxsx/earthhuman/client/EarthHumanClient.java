@@ -7,6 +7,9 @@ import com.xxsx.earthhuman.HumanCareActionPayload;
 import com.xxsx.earthhuman.HumanCareCancelPayload;
 import com.xxsx.earthhuman.HumanCareStatePayload;
 import com.xxsx.earthhuman.HumanExerciseSessionPayload;
+import com.xxsx.earthhuman.ExerciseAction;
+import com.xxsx.earthhuman.HumanExerciseActionPayload;
+import com.xxsx.earthhuman.HumanTrainingSyncPayload;
 import com.xxsx.earthhuman.HumanBodySyncPayload;
 import com.xxsx.earthhuman.HumanActivityType;
 import com.xxsx.earthhuman.HumanOpenSettingsPayload;
@@ -41,6 +44,7 @@ public final class EarthHumanClient {
             1.0D, 1.0D, 1.0D, 0.0D, 0.0D);
     private static HumanCareStatePayload syncedCareState = HumanCareStatePayload.IDLE;
     private static HumanExerciseSessionPayload syncedExercise = HumanExerciseSessionPayload.IDLE;
+    private static HumanTrainingSyncPayload syncedTraining = HumanTrainingSyncPayload.EMPTY;
     private static CameraType cameraBeforeExercise;
     private static boolean exerciseCameraForced;
     private static int careAnimationTicker;
@@ -68,6 +72,7 @@ public final class EarthHumanClient {
     private static void registerPayloadHandlers(RegisterClientPayloadHandlersEvent event) {
         event.register(HumanStatusSyncPayload.TYPE, EarthHumanClient::handleStatusSync);
         event.register(HumanBodySyncPayload.TYPE, EarthHumanClient::handleBodySync);
+        event.register(HumanTrainingSyncPayload.TYPE, EarthHumanClient::handleTrainingSync);
         event.register(HumanOpenSettingsPayload.TYPE, EarthHumanClient::handleOpenSettings);
         event.register(HumanOpenStatusPayload.TYPE, EarthHumanClient::handleOpenStatus);
         event.register(HumanOpenGuidePayload.TYPE, EarthHumanClient::handleOpenGuide);
@@ -86,7 +91,15 @@ public final class EarthHumanClient {
     }
 
     private static void onScreenMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
-        if (event.getButton() != 0 || !InventoryBodySummary.hitTest(event.getScreen(), event.getMouseX(), event.getMouseY())) {
+        if (event.getButton() != 0) {
+            return;
+        }
+        if (InventoryBodySummary.hitTestCultivationHub(event.getScreen(), event.getMouseX(), event.getMouseY())) {
+            event.setCanceled(true);
+            openCultivationHub(event.getScreen());
+            return;
+        }
+        if (!InventoryBodySummary.hitTest(event.getScreen(), event.getMouseX(), event.getMouseY())) {
             return;
         }
         event.setCanceled(true);
@@ -102,6 +115,10 @@ public final class EarthHumanClient {
 
     private static void handleBodySync(HumanBodySyncPayload payload, IPayloadContext context) {
         context.enqueueWork(() -> syncedBody = payload);
+    }
+
+    private static void handleTrainingSync(HumanTrainingSyncPayload payload, IPayloadContext context) {
+        context.enqueueWork(() -> syncedTraining = payload);
     }
 
     private static void handleOpenSettings(HumanOpenSettingsPayload payload, IPayloadContext context) {
@@ -252,6 +269,15 @@ public final class EarthHumanClient {
         minecraft.setScreen(new EarthHumanStatusScreen(null, initialTab));
     }
 
+    public static void openCultivationHub(net.minecraft.client.gui.screens.Screen parent) {
+        Minecraft minecraft = Minecraft.getInstance();
+        minecraft.setScreen(new CultivationHubScreen(parent));
+    }
+
+    public static HumanBodySyncPayload currentBodyPayload() {
+        return syncedBody;
+    }
+
     static HumanStatus syncedStatus() {
         return syncedStatus;
     }
@@ -260,12 +286,20 @@ public final class EarthHumanClient {
         return syncedBody;
     }
 
+    static HumanTrainingSyncPayload syncedTraining() {
+        return syncedTraining;
+    }
+
     static HumanCareStatePayload syncedCareState() {
         return syncedCareState;
     }
 
     static void requestCareAction(CareAction action) {
         ClientPacketDistributor.sendToServer(new HumanCareActionPayload(action.id));
+    }
+
+    static void requestExerciseAction(ExerciseAction action) {
+        ClientPacketDistributor.sendToServer(new HumanExerciseActionPayload(action.id));
     }
 
     static void cancelCareAction() {

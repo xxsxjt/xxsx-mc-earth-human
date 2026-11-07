@@ -46,17 +46,20 @@ public final class EarthHumanItems {
             ItemUseAnimation.BLOCK, 0.0D, 0.8D, -4.0D, null);
     public static final DeferredItem<Item> CLEAN_CLOTH = guided("clean_cloth", props -> props.stacksTo(64));
     public static final DeferredItem<Item> SIMPLE_BANDAGE = consumable("simple_bandage", props -> props.stacksTo(32),
-            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -4.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, 0.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 80, 0));
     public static final DeferredItem<Item> STERILE_BANDAGE = consumable("sterile_bandage", props -> props.stacksTo(32),
-            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -8.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, 0.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 140, 0));
     public static final DeferredItem<Item> DISINFECTANT_WIPE = guided("disinfectant_wipe", props -> props.stacksTo(32));
     public static final DeferredItem<Item> ANTISEPTIC_BOTTLE = guided("antiseptic_bottle", props -> props.stacksTo(16));
     public static final DeferredItem<Item> BASIC_FIRST_AID_KIT = consumable("basic_first_aid_kit", props -> props.stacksTo(8),
-            ItemUseAnimation.BRUSH, 0.0D, 0.0D, -18.0D, null,
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, 0.0D, null,
             new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 200, 0),
             new StatusConsumableItem.EffectSpec(MobEffects.ABSORPTION, 300, 0));
+    public static final DeferredItem<Item> ORTHOPEDIC_SPLINT = consumable("orthopedic_splint", props -> props.stacksTo(16),
+            ItemUseAnimation.BRUSH, 0.0D, 0.0D, 0.0D, null,
+            new StatusConsumableItem.EffectSpec(MobEffects.REGENERATION, 120, 0));
     public static final DeferredItem<Item> CLOTH_MASK = mask("cloth_mask", props -> props.stacksTo(16),
             0.45D, "tooltip.earth_human.cloth_mask.filter");
     public static final DeferredItem<Item> DUST_MASK = mask("dust_mask", props -> props.stacksTo(16),

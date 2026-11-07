@@ -1,0 +1,19 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 0,
+  "gate": "root",
+  "requires": [],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "ability": "earth_human:calisthenics"
+    }
+  ],
+  "literature": [
+    "common_sense"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.calisthenics_basics",
+  "desc_key": "lore.earth_human.som.calisthenics_basics.desc"
+}

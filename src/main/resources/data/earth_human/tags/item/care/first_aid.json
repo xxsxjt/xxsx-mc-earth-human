@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "earth_human:basic_first_aid_kit"
+    "earth_human:basic_first_aid_kit",
+    "earth_human:orthopedic_splint"
   ]
 }

@@ -1,0 +1,39 @@
+{
+  "discipline": "earth_lore:som",
+  "tier": 3,
+  "gate": "soft",
+  "requires": [
+    {
+      "all": "earth_human:som/tendon_and_bone"
+    },
+    {
+      "all": "earth_human:som/resistance_conditioning"
+    }
+  ],
+  "item_requires": [],
+  "unlocks": [
+    {
+      "ability": "earth_human:visceral_vitality"
+    }
+  ],
+  "literature": [
+    "notes"
+  ],
+  "teachers": [],
+  "fail_codes": [],
+  "name_key": "lore.earth_human.som.visceral_vitality",
+  "desc_key": "lore.earth_human.som.visceral_vitality.desc",
+  "research": {
+    "items": [
+      {
+        "ingredient": "minecraft:cooked_beef",
+        "count": 4
+      },
+      {
+        "ingredient": "minecraft:apple",
+        "count": 4
+      }
+    ],
+    "ticks": 800
+  }
+}

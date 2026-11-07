@@ -185,6 +185,7 @@ public final class HumanCareActions {
             case WARM -> status.bodyTemperature < 42.49D || status.fatigue > 0.01D;
             case COOL -> status.bodyTemperature > 32.01D || status.fatigue > 0.01D;
             case BANDAGE -> hasMissingBodyHealth(body, false);
+            case SPLINT -> body.hasFracture() || body.hasSpecificInjury() || hasMissingBodyHealth(body, false);
             case FIRST_AID -> hasMissingBodyHealth(body, true);
         };
     }
@@ -232,8 +233,9 @@ public final class HumanCareActions {
             case HYDRATE -> changeStatus(status, 25.0D, 0.0D, 0.0D);
             case WARM -> changeStatus(status, 0.0D, 0.45D, -1.0D);
             case COOL -> changeStatus(status, 0.0D, -0.45D, -1.0D);
-            case BANDAGE -> body.healWorst(player, 1.5D * EarthHumanConfig.healingMultiplier(), false);
-            case FIRST_AID -> body.healWorst(player, 4.0D * EarthHumanConfig.healingMultiplier(), true);
+            case BANDAGE -> body.treatFracture(player, 0.35D, 1.8D * EarthHumanConfig.healingMultiplier());
+            case SPLINT -> body.treatFracture(player, 0.68D, 3.0D * EarthHumanConfig.healingMultiplier());
+            case FIRST_AID -> body.treatFracture(player, 0.78D, 4.5D * EarthHumanConfig.healingMultiplier());
         };
         status.save(player);
         body.save(player);
