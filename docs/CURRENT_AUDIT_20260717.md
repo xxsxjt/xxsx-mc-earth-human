@@ -5,7 +5,7 @@
 日期：2026-07-18
 目标平台：Minecraft 26.2 / NeoForge 26.2.0.7-beta
 当前工作树版本：0.1.18
-当前 Git 基线：0.1.18；发布代码提交 `bd030d3`，当前验证记录提交 `05575bd`，tag `earth-human-neoforge-26.2-v0.1.18`
+当前 Git 基线：0.1.18；发布代码提交 `bd030d3`，当前验证记录提交 `05575bd`，tag `earth-human-neoforge-26.1.2-v0.1.18`
 
 ## 1. 审查边界与依据
 
@@ -49,11 +49,11 @@
 - `zh_cn` 与 `en_us` 均为 299 个键，当前键集合一致。
 - `src/main/resources` 下 92 个 JSON 均可解析。
 - `gradlew clean test build --no-daemon` 成功；19 个自动测试全部通过，0 failure / 0 error / 0 skipped。
-- 最终 0.1.18 构建目标为 `earth-human-neoforge-26.2-0.1.18.jar`，本轮构建产物 SHA256 为 `1368D41B419D7A19A89BF5FA4D99CE7D0AD9A9558D078196D102710A24E1D54F`。
+- 最终 0.1.18 构建目标为 `earth-human-neoforge-26.1.2-0.1.18.jar`，本轮构建产物 SHA256 为 `1368D41B419D7A19A89BF5FA4D99CE7D0AD9A9558D078196D102710A24E1D54F`。
 - 最终 NeoForge 26.2 专服冒烟验证已到达 `Done (0.366s)`：Earth Human 0.1.18、Earth on Minecraft 0.1.9、Magic 0.4.2、玄幻 0.4.2 均完成加载；加载 1747 个配方、1688 个进度，无 Earth Human 崩溃或错误。
 - 本轮按授权只做服务端启动错误检查，没有启动客户端试玩；背包点击、手册翻页、受伤和护理的客户端行为仍不能标记为已试玩验证。
 - 目标实例 `D:\_dx\_Games\MC\xxxxxx\.minecraft\versions\26.2-NeoForge_26.2.0.7-beta\mods` 已部署 0.1.18；旧 0.1.16 已保留为 `.jar.bak-20260718-152655`，活动 Earth Human jar 数量为 1。
-- GitHub prerelease 已发布：[earth-human-neoforge-26.2-v0.1.18](https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.2-v0.1.18)；jar 附件 HEAD 返回 302，远端下载 SHA256 与本地一致。
+- GitHub prerelease 已发布：[earth-human-neoforge-26.1.2-v0.1.18](https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.1.2-v0.1.18)；jar 附件 HEAD 返回 302，远端下载 SHA256 与本地一致。
 
 ### 2.3 仍不能算作已完成
 

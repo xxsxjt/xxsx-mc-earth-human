@@ -10,7 +10,7 @@ from PIL import Image
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-ASSETS = ROOT / "src" / "main" / "resources" / "assets" / "earth_human"
+ASSETS = ROOT / "neoforge-26.1.2" / "src" / "main" / "resources" / "assets" / "earth_human"
 BLOCK_TEXTURES = ASSETS / "textures" / "block"
 BLOCK_MODELS = ASSETS / "models" / "block"
 

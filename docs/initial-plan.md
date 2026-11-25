@@ -154,7 +154,7 @@ v0.2 开始扩展真实生存层：
 - MC 26.2 / NeoForge 26.2.0.7-beta。
 - Java 25。
 - 独立 mod id：`earth_human`。
-- 包名建议：`com.xxsx.earthhuman`。
+- 包名建议：`com.xxsx.earth.human`。
 - 仓库目录：`D:\_dx\_Games\MC\_agent\earth_human`。
 
 实现面：
