@@ -10,8 +10,8 @@
 
 | File | Mod | Target | Required |
 |---|---|---|---|
-| `earth-human-neoforge-26.2-0.1.20.jar` | Earth Human core 0.1.20 | Minecraft 26.2 / NeoForge 26.2.0.7-beta | Yes |
-| `earth-human-body-neoforge-26.2-0.1.1.jar` | Body Health add-on 0.1.1 | Minecraft 26.2 / NeoForge 26.2.0.7-beta | No |
+| `earth-human-neoforge-26.1.2-0.1.20.jar` | Earth Human core 0.1.20 | Minecraft 26.2 / NeoForge 26.2.0.7-beta | Yes |
+| `earth-human-body-neoforge-26.1.2-0.1.1.jar` | Body Health add-on 0.1.1 | Minecraft 26.2 / NeoForge 26.2.0.7-beta | No |
 
 Install the core jar for normal play. Install the Body Health add-on only when split
 body health is wanted; it deliberately changes ordinary combat assumptions.

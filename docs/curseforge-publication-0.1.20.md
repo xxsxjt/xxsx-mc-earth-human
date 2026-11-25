@@ -9,7 +9,7 @@
 
 ## Artifact
 
-- File: `earth-human-neoforge-26.2-0.1.20.jar`
+- File: `earth-human-neoforge-26.1.2-0.1.20.jar`
 - Target: Minecraft 26.2 / NeoForge 26.2.0.7-beta / Java 25
 - SHA256: `4AE2DA9ED991C1A1C6A847910100825F3F648683E13FACA7B49F10557BF512F1`
 - Distribution boundary: the core project received only the core jar. The optional

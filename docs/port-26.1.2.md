@@ -48,7 +48,7 @@ SHA-256：`ED9F5BD528738F7E0124221160564566838C72C8FF44D0C92DE082BE5395184E`
 
 - 未进入游戏客户端：HUD 叠放、物品栏内人体摘要的坐标、状态界面、快捷护理交互均只有
   源码级与服务器级证据。
-- 26.1.2 实例里没有 `earth_on_minecraft`，饮水/环境联动为可选依赖，本次未实际联动。
+- 26.1.2 实例里没有 `earth_core`，饮水/环境联动为可选依赖，本次未实际联动。
 - 物品提示、事件注册点与 26.2 的差异已逐一对比源码（`LivingDamageEvent` 仅少了
   `shouldCauseSideEffects`，`ItemTooltipEvent` 少了 `TooltipDisplay`，本 mod 都未使用），
   但没有运行时行为对照。
@@ -56,5 +56,5 @@ SHA-256：`ED9F5BD528738F7E0124221160564566838C72C8FF44D0C92DE082BE5395184E`
 ## 相关仓库
 
 `earth_human_body` 的 `build.gradle:34` 仍写复合坐标
-`com.xxsx.earthhuman:earth-human-neoforge-26.2:0.1.20`，与本分支的新 archive 名不再匹配；
+`com.xxsx.earth.human:earth-human-neoforge-26.1.2:0.1.20`，与本分支的新 archive 名不再匹配；
 该问题已记入 `mc-agent/HANDOFF.md`，未在本仓库修改。

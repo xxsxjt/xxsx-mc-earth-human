@@ -13,9 +13,9 @@ from PIL import Image
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-RESOURCES = ROOT / "src" / "main" / "resources"
+RESOURCES = ROOT / "neoforge-26.1.2" / "src" / "main" / "resources"
 ASSETS = RESOURCES / "assets" / "earth_human"
-ITEM_SOURCE = ROOT / "src" / "main" / "java" / "com" / "xxsx" / "earthhuman" / "EarthHumanItems.java"
+ITEM_SOURCE = ROOT / "neoforge-26.1.2" / "src" / "main" / "java" / "com" / "xxsx" / "earth" / "human" / "EarthHumanItems.java"
 
 
 def load_json(path: pathlib.Path, errors: list[str]) -> object | None:

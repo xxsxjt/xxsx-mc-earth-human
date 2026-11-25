@@ -5,7 +5,7 @@
 
 ## Java API v1
 
-可选联动应优先调用 `com.xxsx.earthhuman.api.EarthHumanApi`，不要直接读写 `earth_human.*` 玩家持久数据。
+可选联动应优先调用 `com.xxsx.earth.human.api.EarthHumanApi`，不要直接读写 `earth_human.*` 玩家持久数据。
 
 - `apiVersion()`：当前返回 `1`。
 - `snapshot(ServerPlayer)`：读取服务端权威的人体状态摘要。
@@ -21,7 +21,7 @@ API 缺失或版本不匹配时，调用方应安全关闭联动，不能回退�
 ## 身体血量桥接 API v1
 
 只有需要接管原版生命流程的独立附属才应调用
-`com.xxsx.earthhuman.api.BodyHealthBridgeApi`。普通内容联动仍使用上面的 `EarthHumanApi v1`。
+`com.xxsx.earth.human.api.BodyHealthBridgeApi`。普通内容联动仍使用上面的 `EarthHumanApi v1`。
 
 ```java
 BodyHealthBridgeApi.ConfigureResult result = BodyHealthBridgeApi.configure(

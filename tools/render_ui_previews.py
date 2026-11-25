@@ -13,8 +13,8 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 OUT = ROOT / "tmp" / "ui-audit-v2"
-LANG_DIR = ROOT / "src" / "main" / "resources" / "assets" / "earth_human" / "lang"
-TEXTURES = ROOT / "src" / "main" / "resources" / "assets" / "earth_human" / "textures" / "item"
+LANG_DIR = ROOT / "neoforge-26.1.2" / "src" / "main" / "resources" / "assets" / "earth_human" / "lang"
+TEXTURES = ROOT / "neoforge-26.1.2" / "src" / "main" / "resources" / "assets" / "earth_human" / "textures" / "item"
 
 WIDTH = 320
 HEIGHT = 240

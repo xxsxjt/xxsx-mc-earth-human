@@ -3,8 +3,8 @@
 ## Release boundary
 
 - Target: Minecraft 26.2 / NeoForge 26.2.0.7-beta / Java 25.
-- Core artifact: `earth-human-neoforge-26.2-0.1.20.jar`.
-- Optional add-on artifact: `earth-human-body-neoforge-26.2-0.1.1.jar`.
+- Core artifact: `earth-human-neoforge-26.1.2-0.1.20.jar`.
+- Optional add-on artifact: `earth-human-body-neoforge-26.1.2-0.1.1.jar`.
 - The core keeps vanilla health, armor, absorption, healing, death, melee,
   projectile and explosion resolution authoritative.
 - Core-specific injuries are deliberately narrow: high falls affect the legs;
@@ -28,7 +28,7 @@
 
 ## Compatibility
 
-- `com.xxsx.earthhuman.api.BodyHealthBridgeApi` is the supported split-health bridge.
+- `com.xxsx.earth.human.api.BodyHealthBridgeApi` is the supported split-health bridge.
 - The bridge has explicit ownership, prevents silent add-on replacement and supports
   same-owner config reloads and clean `overlay_only` deactivation.
 - The old `EarthHumanBodyHealthBridge` remains as a deprecated compatibility facade.
@@ -61,13 +61,13 @@
 - Active core jar count: 1.
 - Core SHA256: `4AE2DA9ED991C1A1C6A847910100825F3F648683E13FACA7B49F10557BF512F1`.
 - Previous 0.1.19 jar was retained as
-  `earth-human-neoforge-26.2-0.1.19.jar.bak-20260719-144747`.
+  `earth-human-neoforge-26.1.2-0.1.19.jar.bak-20260719-144747`.
 - The optional Body Health add-on was intentionally not deployed to the normal test instance.
 
 ## GitHub prerelease
 
-- Release: `earth-human-neoforge-26.2-v0.1.20`.
-- URL: https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.2-v0.1.20
+- Release: `earth-human-neoforge-26.1.2-v0.1.20`.
+- URL: https://github.com/xxsxjt/xxsx-mc-earth-human/releases/tag/earth-human-neoforge-26.1.2-v0.1.20
 - Published assets: the core 0.1.20 jar and optional Body Health 0.1.1 jar.
 - Both exact jar URLs returned `302` to `release-assets.githubusercontent.com`.
 - Both remote downloads matched the verified local SHA256 values above and in the release notes.
